@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header class="top" id="app-header"></header>
+<div class="wrap">
+  <div id="flash-holder"></div>
+  <h2 class="section">Messaging</h2>
+
+  <div class="flash error">
+    SMS needs the optional <code>send-sms</code> Edge Function deployed with your Twilio credentials
+    (see README Phase 2). Until then, sending will show an error here — everything else in the system
+    works without it.
+  </div>
+
+  <div class="card">
+    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Send to one member</div>
+    <form id="search-form" class="row-actions">
+      <input type="text" id="search-input" placeholder="Search by Member ID or name">
+      <button class="btn small" type="submit">Search</button>
+    </form>
+    <div id="matches-holder"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Message all members</div>
+    <form id="broadcast-form">
+      <label>Message</label>
+      <textarea id="broadcast-message" required></textarea>
+      <div class="row-actions"><button class="btn" type="submit">Send to All</button></div>
+    </form>
+  </div>
+
+  <div id="results-card" class="card" style="display:none;">
+    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Results</div>
+    <div id="results-holder"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="js/service-worker-register.js"></script>
+<script>
+async function callSendSms(payload) {
+  const { data, error } = await window.supabaseClient.functions.invoke("send-sms", { body: payload });
+  if (error) throw error;
+  return data;
+}
+
+function showResults(rows) {
+  document.getElementById("results-card").style.display = "";
+  document.getElementById("results-holder").innerHTML = `
+    <table class="simple"><tr><th>Member</th><th>Status</th></tr>
+    ${rows.map((r) => `<tr><td>${r.name}</td><td>${r.success ? `<span class="badge paid">Sent</span>` : `<span class="badge unpaid">Failed</span>`}</td></tr>`).join("")}
+    </table>`;
+}
+
+document.getElementById("search-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = document.getElementById("search-input").value.trim();
+  const matches = q ? await searchMembers(q) : [];
+  const holder = document.getElementById("matches-holder");
+  if (!matches.length) { holder.innerHTML = ""; return; }
+  holder.innerHTML = `
+    <form id="single-send-form">
+      <label>Recipient</label>
+      <select id="recipient-select">
+        ${matches.map((m) => `<option value="${m.id}" data-phone="${m.phone_number || ""}" data-name="${m.name}">${m.name} (${m.member_code}) — ${m.phone_number || "no phone"}</option>`).join("")}
+      </select>
+      <label>Message</label>
+      <textarea id="single-message" required></textarea>
+      <div class="row-actions"><button class="btn" type="submit">Send</button></div>
+    </form>`;
+  document.getElementById("single-send-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const opt = document.getElementById("recipient-select").selectedOptions[0];
+    try {
+      await callSendSms({ to: opt.dataset.phone, message: document.getElementById("single-message").value });
+      showResults([{ name: opt.dataset.name, success: true }]);
+    } catch (err) {
+      flash("Send failed: " + err.message, "error");
+      showResults([{ name: opt.dataset.name, success: false }]);
+    }
+  });
+});
+
+document.getElementById("broadcast-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!confirm("Send this message to every member with a phone number on file?")) return;
+  const message = document.getElementById("broadcast-message").value;
+  const members = (await getAllMembers()).filter((m) => m.phone_number);
+  const results = [];
+  for (const m of members) {
+    try {
+      await callSendSms({ to: m.phone_number, message });
+      results.push({ name: m.name, success: true });
+    } catch (err) {
+      results.push({ name: m.name, success: false });
+    }
+  }
+  showResults(results);
+});
+
+async function load() {
+  const profile = await requireAuth("admin");
+  if (!profile) return;
+  await renderHeader("messaging", profile);
+}
+load().catch((e) => flash("Couldn't load messaging: " + e.message, "error"));
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Announcements</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header class="top" id="app-header"></header>
+<div class="wrap">
+  <div id="flash-holder"></div>
+  <h2 class="section">Announcements</h2>
+  <div class="row-actions" style="margin:0 0 16px;">
+    <a class="btn" href="news-form.html">+ New Announcement</a>
+  </div>
+  <div id="posts-holder">Loading…</div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="js/service-worker-register.js"></script>
+<script>
+async function load() {
+  const profile = await requireAuth("admin");
+  if (!profile) return;
+  await renderHeader("news", profile);
+  const posts = await getAllNews();
+  const holder = document.getElementById("posts-holder");
+  if (posts.length === 0) {
+    holder.innerHTML = `<div class="empty">No announcements posted yet.</div>`;
+    return;
+  }
+  holder.innerHTML = posts
+    .map(
+      (n) => `
+    <div class="card">
+      <div style="font-family:Georgia,serif;font-size:16px;">${n.title}</div>
+      <div class="muted" style="font-size:11px;margin-bottom:8px;">${new Date(n.posted_on).toLocaleString()}${n.posted_by ? " · " + n.posted_by : ""}</div>
+      <div style="font-size:13.5px;white-space:pre-wrap;margin-bottom:10px;">${n.content}</div>
+      <div class="row-actions">
+        <a class="btn secondary small" href="news-form.html?id=${n.id}">Edit</a>
+        <button class="btn danger small" data-delete="${n.id}">Delete</button>
+      </div>
+    </div>`
+    )
+    .join("");
+
+  holder.querySelectorAll("[data-delete]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this announcement?")) return;
+      await deleteNews(btn.dataset.delete);
+      load();
+    });
+  });
+}
+load().catch((e) => flash("Couldn't load announcements: " + e.message, "error"));
+</script>
+</body>
+</html>

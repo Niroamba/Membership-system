@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Announcement</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header class="top" id="app-header"></header>
+<div class="wrap">
+  <div id="flash-holder"></div>
+  <h2 class="section" id="form-title">New Announcement</h2>
+  <div class="card">
+    <form id="news-form">
+      <label>Title</label>
+      <input type="text" id="f-title" required>
+      <label>Message</label>
+      <textarea id="f-content" required></textarea>
+      <div class="row-actions">
+        <button class="btn" type="submit">Save</button>
+        <a class="btn secondary" href="news.html">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="js/service-worker-register.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const newsId = params.get("id");
+let profile = null;
+
+async function load() {
+  profile = await requireAuth("admin");
+  if (!profile) return;
+  await renderHeader("news", profile);
+  if (newsId) {
+    document.getElementById("form-title").textContent = "Edit Announcement";
+    const post = await getNews(newsId);
+    document.getElementById("f-title").value = post.title;
+    document.getElementById("f-content").value = post.content;
+  }
+}
+
+document.getElementById("news-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title = document.getElementById("f-title").value.trim();
+  const content = document.getElementById("f-content").value.trim();
+  try {
+    if (newsId) {
+      await updateNews(newsId, title, content);
+    } else {
+      await addNews(title, content, profile.username || profile.role);
+    }
+    window.location.href = "news.html";
+  } catch (err) {
+    flash(err.message, "error");
+  }
+});
+
+load().catch((e) => flash("Couldn't load: " + e.message, "error"));
+</script>
+</body>
+</html>

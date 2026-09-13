@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header class="top" id="app-header"></header>
+<div class="wrap">
+  <div id="flash-holder"></div>
+
+  <div id="news-section" style="display:none;">
+    <h2 class="section">Announcements</h2>
+    <div class="card" id="news-holder"></div>
+  </div>
+
+  <h2 class="section">Overview</h2>
+  <div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="totals-holder">Loading…</div>
+
+  <h2 class="section">Members</h2>
+  <div class="row-actions" style="margin:0 0 10px;">
+    <a class="btn" href="member-detail.html">+ Add Member</a>
+    <button class="btn secondary" id="export-all">Export All Members (Word)</button>
+  </div>
+  <div id="members-holder"><div class="empty">Loading…</div></div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9/build/index.umd.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/service-worker-register.js"></script>
+<script>
+let allMembers = [];
+
+async function load() {
+  const profile = await requireAuth("admin");
+  if (!profile) return;
+  await renderHeader("dashboard", profile);
+
+  const news = await getAllNews();
+  if (news.length) {
+    document.getElementById("news-section").style.display = "";
+    document.getElementById("news-holder").innerHTML = news
+      .slice(0, 3)
+      .map(
+        (n) => `
+      <div style="border-left:3px solid #a9812f;padding:6px 12px;margin-bottom:10px;">
+        <div style="font-family:Georgia,serif;font-size:15px;">${n.title}</div>
+        <div class="muted" style="font-size:11px;">${new Date(n.posted_on).toLocaleDateString()}</div>
+        <div style="font-size:13px;white-space:pre-wrap;">${n.content}</div>
+      </div>`
+      )
+      .join("");
+  }
+
+  allMembers = await getAllMembersWithTotals();
+  const totals = summarizeTotals(allMembers);
+  document.getElementById("totals-holder").innerHTML = `
+    <div><div class="muted">Total Members</div><div style="font-family:Georgia,serif;font-size:22px;">${totals.total_members}</div></div>
+    <div><div class="muted">Total Collected</div><div style="font-family:Georgia,serif;font-size:22px;">${money(totals.total_collected)}</div></div>
+    <div><div class="muted">Total Expected</div><div style="font-family:Georgia,serif;font-size:22px;">${money(totals.total_expected)}</div></div>
+    <div><div class="muted">Outstanding</div><div style="font-family:Georgia,serif;font-size:22px;">${money(totals.total_outstanding)}</div></div>
+  `;
+
+  const holder = document.getElementById("members-holder");
+  if (allMembers.length === 0) {
+    holder.innerHTML = `<div class="empty">No members yet — add your first one above.</div>`;
+    return;
+  }
+  holder.innerHTML = allMembers
+    .map(
+      (m) => `
+    <a href="member-detail.html?id=${m.id}" style="text-decoration:none;color:inherit;">
+    <div class="card" style="margin:10px 0;">
+      <div style="font-family:Georgia,serif;font-size:17px;">${m.name} <span class="muted" style="font-size:11px;">${m.member_code}</span></div>
+      <div class="muted" style="font-size:12px;margin-bottom:6px;">${m.phone_number || ""}</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;">
+        <span>Charged: ${money(m.total_charged)} · Paid: ${money(m.total_paid)}</span>
+        ${m.balance > 0 ? `<span class="badge unpaid">Balance ${money(m.balance)}</span>` : `<span class="badge paid">Fully Paid</span>`}
+      </div>
+    </div>
+    </a>`
+    )
+    .join("");
+}
+
+document.getElementById("export-all").addEventListener("click", async () => {
+  const societyName = await getSocietyName();
+  await exportAllMembersReport(societyName, allMembers);
+});
+
+load().catch((e) => {
+  console.error(e);
+  flash("Something went wrong loading the dashboard: " + e.message, "error");
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="card center-card">
+    <div style="letter-spacing:.18em;text-transform:uppercase;font-size:11px;color:#a9812f;margin-bottom:6px;" id="brand-name">Membership System</div>
+
+    <div id="signin-view">
+      <h2 class="section" style="margin:0 0 16px;border-bottom:2px solid #1f2933;padding-bottom:12px;">Sign in</h2>
+      <form id="signin-form">
+        <label>Email</label>
+        <input type="email" id="signin-email" required autocomplete="username">
+        <label>Password</label>
+        <input type="password" id="signin-password" required autocomplete="current-password">
+        <div class="row-actions"><button class="btn" type="submit" style="width:100%;">Sign in</button></div>
+      </form>
+      <p class="muted" style="margin-top:16px;">
+        <a href="#" id="show-signup">First time here? Create an account</a><br>
+        <a href="#" id="show-forgot">Forgot your password?</a>
+      </p>
+    </div>
+
+    <div id="signup-view" style="display:none;">
+      <h2 class="section" style="margin:0 0 8px;border-bottom:2px solid #1f2933;padding-bottom:12px;">Create account</h2>
+      <p class="muted">If you're the very first person to sign up here, you'll automatically become the administrator. Anyone who signs up after that starts as a plain member account until an admin promotes them from Settings.</p>
+      <form id="signup-form">
+        <label>Email</label>
+        <input type="email" id="signup-email" required>
+        <label>Password (at least 6 characters)</label>
+        <input type="password" id="signup-password" required minlength="6">
+        <div class="row-actions"><button class="btn" type="submit" style="width:100%;">Create account</button></div>
+      </form>
+      <p class="muted" style="margin-top:16px;"><a href="#" id="show-signin-from-signup">Back to sign in</a></p>
+    </div>
+
+    <div id="forgot-view" style="display:none;">
+      <h2 class="section" style="margin:0 0 8px;border-bottom:2px solid #1f2933;padding-bottom:12px;">Reset password</h2>
+      <p class="muted">We'll email you a reset link (admin accounts with a real email address only).</p>
+      <form id="forgot-form">
+        <label>Email</label>
+        <input type="email" id="forgot-email" required>
+        <div class="row-actions"><button class="btn" type="submit" style="width:100%;">Send reset link</button></div>
+      </form>
+      <p class="muted" style="margin-top:16px;"><a href="#" id="show-signin-from-forgot">Back to sign in</a></p>
+    </div>
+
+    <div id="flash-holder"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script>
+function showView(view) {
+  document.getElementById("signin-view").style.display = view === "signin" ? "" : "none";
+  document.getElementById("signup-view").style.display = view === "signup" ? "" : "none";
+  document.getElementById("forgot-view").style.display = view === "forgot" ? "" : "none";
+}
+document.getElementById("show-signup").onclick = (e) => { e.preventDefault(); showView("signup"); };
+document.getElementById("show-forgot").onclick = (e) => { e.preventDefault(); showView("forgot"); };
+document.getElementById("show-signin-from-signup").onclick = (e) => { e.preventDefault(); showView("signin"); };
+document.getElementById("show-signin-from-forgot").onclick = (e) => { e.preventDefault(); showView("forgot" === "forgot" ? "signin" : "signin"); };
+
+function flashHere(message, type) {
+  const holder = document.getElementById("flash-holder");
+  holder.innerHTML = `<div class="flash ${type}">${message}</div>`;
+}
+
+document.getElementById("signin-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("signin-email").value.trim();
+  const password = document.getElementById("signin-password").value;
+  const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) { flashHere(error.message, "error"); return; }
+  const profile = await getMyProfile();
+  window.location.href = profile && profile.role === "admin" ? "dashboard.html" : "my-payments.html";
+});
+
+document.getElementById("signup-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("signup-email").value.trim();
+  const password = document.getElementById("signup-password").value;
+  const { error } = await window.supabaseClient.auth.signUp({ email, password });
+  if (error) { flashHere(error.message, "error"); return; }
+  flashHere("Account created. Check your email if confirmation is required, then sign in.", "success");
+  showView("signin");
+});
+
+document.getElementById("forgot-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("forgot-email").value.trim();
+  const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname.replace("login.html", "reset-password.html"),
+  });
+  if (error) { flashHere(error.message, "error"); return; }
+  flashHere("If that email has an account, a reset link is on its way.", "success");
+});
+
+(async () => {
+  try {
+    const name = await getSocietyName();
+    document.getElementById("brand-name").textContent = name;
+    document.title = "Sign in · " + name;
+  } catch (e) { /* ignore before schema is set up */ }
+  const session = await getSession();
+  if (session) {
+    const profile = await getMyProfile();
+    if (profile) window.location.href = profile.role === "admin" ? "dashboard.html" : "my-payments.html";
+  }
+})();
+</script>
+</body>
+</html>

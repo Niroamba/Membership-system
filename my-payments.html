@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Payments</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header class="top" id="app-header"></header>
+<div class="wrap">
+  <div id="flash-holder"></div>
+  <h2 class="section">My Payments</h2>
+  <div class="card">
+    <div id="profile-holder">Loading…</div>
+    <div class="row-actions">
+      <button class="btn secondary" id="export-btn">Download My Statement (Word)</button>
+    </div>
+  </div>
+
+  <h2 class="section">Payment History</h2>
+  <div id="charges-holder"><div class="empty">Loading…</div></div>
+
+  <div id="news-section" style="display:none;">
+    <h2 class="section">Announcements</h2>
+    <div class="card" id="news-holder"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9/build/index.umd.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/service-worker-register.js"></script>
+<script>
+let member = null;
+
+async function load() {
+  const profile = await requireAuth("member");
+  if (!profile) return;
+  await renderHeader("my-payments", profile);
+
+  if (!profile.member_id) {
+    document.getElementById("profile-holder").innerHTML = `<div class="empty">Your account isn't linked to a member record yet — ask an admin to connect it.</div>`;
+    return;
+  }
+  member = await getMember(profile.member_id);
+  document.getElementById("profile-holder").innerHTML = `
+    <div style="font-family:Georgia,serif;font-size:19px;">${member.name}</div>
+    <div class="muted">${member.member_code}${member.phone_number ? " · " + member.phone_number : ""}</div>
+    ${member.address ? `<div class="muted">${member.address}</div>` : ""}
+    ${member.joined_date ? `<div class="muted">Joined: ${member.joined_date}</div>` : ""}
+  `;
+
+  const charges = await getChargesForMember(member.id);
+  const holder = document.getElementById("charges-holder");
+  if (charges.length === 0) {
+    holder.innerHTML = `<div class="empty">No payments recorded yet.</div>`;
+  } else {
+    holder.innerHTML = charges
+      .map(
+        (c) => `
+      <div class="card">
+        <div style="font-family:Georgia,serif;font-size:16px;">${c.description} ${c.year ? `(${c.year})` : ""}</div>
+        <div class="muted" style="margin-bottom:8px;">
+          Total ${money(c.total_amount)} · Paid ${money(c.paid)} · Balance ${money(c.balance)}
+          ${c.balance <= 0 ? `<span class="badge paid">Fully Paid</span>` : `<span class="badge unpaid">Outstanding</span>`}
+        </div>
+        ${
+          c.payments.length
+            ? `<table class="simple"><tr><th>Installment</th><th>Amount</th><th>Date</th></tr>${c.payments
+                .map((p) => `<tr><td>${p.installment_no}</td><td>${money(p.amount)}</td><td>${p.paid_date}</td></tr>`)
+                .join("")}</table>`
+            : `<div class="muted">No payments yet.</div>`
+        }
+      </div>`
+      )
+      .join("");
+  }
+
+  const news = await getAllNews();
+  if (news.length) {
+    document.getElementById("news-section").style.display = "";
+    document.getElementById("news-holder").innerHTML = news
+      .map(
+        (n) => `
+      <div style="border-left:3px solid #a9812f;padding:6px 12px;margin-bottom:10px;">
+        <div style="font-family:Georgia,serif;font-size:15px;">${n.title}</div>
+        <div class="muted" style="font-size:11px;">${new Date(n.posted_on).toLocaleDateString()}</div>
+        <div style="font-size:13px;white-space:pre-wrap;">${n.content}</div>
+      </div>`
+      )
+      .join("");
+  }
+
+  document.getElementById("export-btn").addEventListener("click", async () => {
+    const societyName = await getSocietyName();
+    await exportMemberStatement(societyName, member, charges);
+  });
+}
+
+load().catch((e) => flash("Couldn't load your payments: " + e.message, "error"));
+</script>
+</body>
+</html>

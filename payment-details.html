@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Details</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header class="top" id="app-header"></header>
+<div class="wrap">
+  <div id="flash-holder"></div>
+  <h2 class="section">Payment Details</h2>
+  <div class="card">
+    <form id="filter-form" class="row-actions" style="align-items:end;">
+      <div><label style="margin-top:0;">Category</label><select id="f-category"></select></div>
+      <div><label style="margin-top:0;">Year</label><select id="f-year"><option value="">All years</option></select></div>
+      <button class="btn small" type="submit">Filter</button>
+    </form>
+  </div>
+  <div class="row-actions" style="margin:0 0 12px;">
+    <button class="btn secondary" id="export-btn">Export This View (Word)</button>
+  </div>
+  <div class="card"><div id="rows-holder"><div class="empty">Choose a category above.</div></div></div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9/build/index.umd.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/service-worker-register.js"></script>
+<script>
+let currentRows = [];
+let currentCategory = "";
+let currentYear = "";
+
+async function refreshYears() {
+  const years = await listYearsForCategory(currentCategory);
+  const sel = document.getElementById("f-year");
+  sel.innerHTML =
+    `<option value="">All years</option>` +
+    years.map((y) => `<option value="${y}" ${String(y) === currentYear ? "selected" : ""}>${y}</option>`).join("");
+}
+
+async function refreshRows() {
+  currentRows = currentCategory ? await getChargesByCategory(currentCategory, currentYear ? parseInt(currentYear, 10) : null) : [];
+  const holder = document.getElementById("rows-holder");
+  if (currentRows.length === 0) {
+    holder.innerHTML = `<div class="empty">No charges recorded for this category${currentYear ? " in " + currentYear : ""}.</div>`;
+    return;
+  }
+  holder.innerHTML = `
+    <table class="simple">
+    <tr><th>ID</th><th>Name</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Last Payment</th></tr>
+    ${currentRows
+      .map(
+        (r) => `
+      <tr>
+        <td>${r.member_code}</td>
+        <td><a href="member-detail.html?id=${r.member_id}">${r.member_name}</a></td>
+        <td>${money(r.total_amount)}</td>
+        <td>${money(r.paid)}</td>
+        <td>${money(r.balance)}</td>
+        <td>${r.balance <= 0 ? `<span class="badge paid">Fully Paid</span>` : `<span class="badge unpaid">Outstanding</span>`}</td>
+        <td>${r.last_payment_date || ""}</td>
+      </tr>`
+      )
+      .join("")}
+    </table>`;
+}
+
+document.getElementById("filter-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  currentCategory = document.getElementById("f-category").value;
+  currentYear = document.getElementById("f-year").value;
+  await refreshRows();
+});
+
+document.getElementById("f-category").addEventListener("change", async () => {
+  currentCategory = document.getElementById("f-category").value;
+  currentYear = "";
+  await refreshYears();
+  await refreshRows();
+});
+
+document.getElementById("export-btn").addEventListener("click", async () => {
+  if (!currentCategory) { flash("Choose a category first.", "error"); return; }
+  const societyName = await getSocietyName();
+  await exportCategoryReport(societyName, currentCategory, currentYear ? parseInt(currentYear, 10) : null, currentRows);
+});
+
+async function load() {
+  const profile = await requireAuth("admin");
+  if (!profile) return;
+  await renderHeader("payment-details", profile);
+  const categories = await listCategories();
+  document.getElementById("f-category").innerHTML = categories.map((c) => `<option value="${c.name}">${c.name}</option>`).join("");
+  currentCategory = categories.length ? categories[0].name : "";
+  await refreshYears();
+  await refreshRows();
+}
+
+load().catch((e) => flash("Couldn't load payment details: " + e.message, "error"));
+</script>
+</body>
+</html>
