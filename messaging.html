@@ -35,7 +35,7 @@
     <form id="broadcast-form">
       <label>Message</label>
       <textarea id="broadcast-message" required></textarea>
-      <div class="row-actions"><button class="btn" type="submit">Send to All</button></div>
+      <div class="row-actions"><button class="btn" type="submit" data-admin-only>Send to All</button></div>
     </form>
   </div>
 
@@ -52,6 +52,8 @@
 <script src="js/data.js"></script>
 <script src="js/service-worker-register.js"></script>
 <script>
+let currentProfile = null;
+
 async function callSendSms(payload) {
   const { data, error } = await window.supabaseClient.functions.invoke("send-sms", { body: payload });
   if (error) throw error;
@@ -80,8 +82,9 @@ document.getElementById("search-form").addEventListener("submit", async (e) => {
       </select>
       <label>Message</label>
       <textarea id="single-message" required></textarea>
-      <div class="row-actions"><button class="btn" type="submit">Send</button></div>
+      <div class="row-actions"><button class="btn" type="submit" data-admin-only>Send</button></div>
     </form>`;
+  applyViewerRestrictions(currentProfile);
   document.getElementById("single-send-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const opt = document.getElementById("recipient-select").selectedOptions[0];
@@ -113,9 +116,10 @@ document.getElementById("broadcast-form").addEventListener("submit", async (e) =
 });
 
 async function load() {
-  const profile = await requireAuth("admin");
-  if (!profile) return;
-  await renderHeader("messaging", profile);
+  currentProfile = await requireAuth("admin_or_viewer");
+  if (!currentProfile) return;
+  await renderHeader("messaging", currentProfile);
+  applyViewerRestrictions(currentProfile);
 }
 load().catch((e) => flash("Couldn't load messaging: " + e.message, "error"));
 </script>

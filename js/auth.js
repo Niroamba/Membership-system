@@ -28,7 +28,7 @@ async function getMyProfile() {
 
 /**
  * Call at the top of every protected page.
- * requiredRole: "admin" | "member" | null (any signed-in user)
+ * requiredRole: "admin" | "viewer" | "member" | "admin_or_viewer" | null (any signed-in user)
  * Returns the profile row, or redirects and returns null.
  */
 async function requireAuth(requiredRole) {
@@ -42,11 +42,36 @@ async function requireAuth(requiredRole) {
     window.location.href = "login.html";
     return null;
   }
-  if (requiredRole && profile.role !== requiredRole) {
-    window.location.href = profile.role === "admin" ? "dashboard.html" : "my-payments.html";
+  const staffPage = requiredRole === "admin_or_viewer";
+  const roleOk = staffPage
+    ? profile.role === "admin" || profile.role === "viewer"
+    : !requiredRole || profile.role === requiredRole;
+  if (!roleOk) {
+    window.location.href = profile.role === "member" ? "my-payments.html" : "dashboard.html";
     return null;
   }
   return profile;
+}
+
+/**
+ * Hides/disables every element carrying data-admin-only on a page, and
+ * shows a "view only" banner, when the signed-in user is a viewer rather
+ * than an admin. Call after requireAuth("admin_or_viewer") resolves.
+ */
+function applyViewerRestrictions(profile) {
+  if (profile.role !== "viewer") return;
+  document.querySelectorAll("[data-admin-only]").forEach((el) => {
+    if (el.tagName === "INPUT" || el.tagName === "BUTTON" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+      el.disabled = true;
+    } else {
+      el.style.display = "none";
+    }
+  });
+  const banner = document.createElement("div");
+  banner.className = "flash error";
+  banner.textContent = "View-only account — changes are disabled.";
+  const holder = document.getElementById("flash-holder");
+  if (holder) holder.prepend(banner);
 }
 
 async function signOut() {

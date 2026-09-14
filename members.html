@@ -3,26 +3,74 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Members</title>
+<title>All members</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .am-toolbar{ background:#2952E3; padding:16px 20px; border-radius:16px 16px 0 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  .am-toolbar h2{ color:#fff; font-family:Georgia,serif; font-weight:normal; font-size:18px; margin:0; }
+  .am-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .am-btn{ border:none; font-size:12px; font-weight:600; padding:7px 12px; border-radius:8px; cursor:pointer; }
+  .am-btn.primary{ background:#fff; color:#2952E3; }
+  .am-btn.ghost{ background:rgba(255,255,255,0.18); color:#fff; }
+  .am-btn.gold{ background:#FFB627; color:#3d2900; }
+  .am-btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .am-feebar{ background:#fdf3e2; padding:10px 20px; font-size:12.5px; color:#6b5a1e; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .am-feebar select{ width:auto; padding:4px 8px; font-size:12.5px; }
+  .am-wrap{ background:#FFF9F0; border:0.5px solid #e5ddc9; border-radius:0 0 16px 16px; overflow:hidden; }
+  table.am-table{ width:100%; border-collapse:separate; border-spacing:0 6px; font-size:12.5px; }
+  table.am-table th{ text-align:left; padding:6px; color:#8a8474; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+  table.am-table td{ padding:9px 6px; background:#fff; cursor:pointer; }
+  table.am-table tr.am-row.selected td{ background:#eaf2fb; }
+  table.am-table td:first-child{ border-radius:8px 0 0 8px; }
+  table.am-table td:last-child{ border-radius:0 8px 8px 0; }
+  .duration-badge{ font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; color:#fff; display:inline-block; }
+  .am-footer{ padding:10px 20px; font-size:12px; color:#8a8474; border-top:0.5px solid #e5ddc9; }
+</style>
 </head>
 <body>
 <header class="top" id="app-header"></header>
 <div class="wrap">
   <div id="flash-holder"></div>
-  <h2 class="section">Members</h2>
-  <form class="search-bar" id="search-form">
-    <input type="text" id="search-input" placeholder="Search by Member ID or name">
-    <button class="btn" type="submit">Search</button>
-  </form>
-  <div class="row-actions" style="margin:0 0 16px;">
-    <a class="btn" href="member-detail.html">+ Add Member</a>
-    <button class="btn secondary" id="export-all">Export All (Word)</button>
+
+  <div class="am-toolbar">
+    <h2>All members</h2>
+    <div class="am-actions">
+      <a class="am-btn primary" href="member-detail.html" data-admin-only>+ Add member</a>
+      <button class="am-btn ghost" id="edit-btn" disabled data-admin-only>Edit selected</button>
+      <button class="am-btn ghost" id="delete-btn" disabled data-admin-only>Delete selected</button>
+      <button class="am-btn ghost" id="view-payments-btn" disabled>View payments</button>
+      <button class="am-btn gold" id="export-btn">Export to Word</button>
+      <button class="am-btn ghost" id="refresh-btn">Refresh</button>
+    </div>
   </div>
-  <div class="card"><div id="members-holder">Loading…</div></div>
+
+  <div class="am-feebar">
+    <span>Membership fee year:
+      <select id="fee-year-select"></select>
+    </span>
+    <span id="fee-amount-label" style="font-weight:600;">—</span>
+  </div>
+
+  <div id="delete-reason-bar" style="display:none;background:#fdeaea;padding:10px 20px;gap:8px;align-items:center;flex-wrap:wrap;" >
+    <input type="text" id="delete-reason-input" placeholder="Reason for removal" style="max-width:240px;display:inline-block;">
+    <button class="am-btn" style="background:#FF5D5D;color:#fff;" id="confirm-delete-btn">Confirm delete</button>
+    <button class="am-btn ghost" style="background:#00000015;color:#4a1b0c;" id="cancel-delete-btn">Cancel</button>
+  </div>
+
+  <div class="am-wrap">
+    <div style="overflow-x:auto;padding:12px 20px 0;">
+      <table class="am-table">
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Joined date</th><th>Phone number</th><th>Address</th><th>Remarks</th><th>Membership duration</th></tr>
+        </thead>
+        <tbody id="rows-body"></tbody>
+      </table>
+    </div>
+    <div class="am-footer" id="footer-count">Loading…</div>
+  </div>
 </div>
 
 <script src="config.js"></script>
@@ -34,48 +82,117 @@
 <script src="js/reports.js"></script>
 <script src="js/service-worker-register.js"></script>
 <script>
-function renderMembers(members) {
-  const holder = document.getElementById("members-holder");
+let allMembers = [];
+let selectedId = null;
+let profile = null;
+
+function durationColor(text) {
+  if (text.includes("yr")) return "#2BAE66";
+  if (text === "—") return "#8a8474";
+  return "#FFB627";
+}
+
+function renderRows(members) {
+  const body = document.getElementById("rows-body");
   if (members.length === 0) {
-    holder.innerHTML = `<div class="empty">No members found.</div>`;
+    body.innerHTML = `<tr><td colspan="7"><div class="empty">No members found.</div></td></tr>`;
     return;
   }
-  holder.innerHTML = `
-    <table class="simple">
-    <tr><th>ID</th><th>Name</th><th>Phone</th><th></th></tr>
-    ${members
-      .map(
-        (m) => `
-      <tr>
+  body.innerHTML = members
+    .map((m) => {
+      const dur = computeMembershipDuration(m.joined_date);
+      return `
+      <tr class="am-row" data-id="${m.id}">
         <td>${m.member_code}</td>
-        <td>${m.name}</td>
+        <td style="font-weight:600;">${m.name}</td>
+        <td>${m.joined_date || ""}</td>
         <td>${m.phone_number || ""}</td>
-        <td><a class="btn small" href="member-detail.html?id=${m.id}">View</a></td>
-      </tr>`
-      )
-      .join("")}
-    </table>`;
+        <td>${m.address || ""}</td>
+        <td>${m.remarks || "-"}</td>
+        <td><span class="duration-badge" style="background:${durationColor(dur)};">${dur}</span></td>
+      </tr>`;
+    })
+    .join("");
+
+  body.querySelectorAll(".am-row").forEach((row) => {
+    row.addEventListener("click", () => selectRow(row.dataset.id));
+  });
 }
+
+function selectRow(id) {
+  selectedId = id === selectedId ? null : id;
+  document.querySelectorAll(".am-row").forEach((r) => r.classList.toggle("selected", r.dataset.id === selectedId));
+  const has = !!selectedId;
+  document.getElementById("edit-btn").disabled = !has;
+  document.getElementById("delete-btn").disabled = !has;
+  document.getElementById("view-payments-btn").disabled = !has;
+  document.getElementById("delete-reason-bar").style.display = "none";
+}
+
+async function loadFeeYear() {
+  const select = document.getElementById("fee-year-select");
+  const current = new Date().getFullYear();
+  const years = [];
+  for (let y = current - 5; y <= current + 1; y++) years.push(y);
+  select.innerHTML = years.map((y) => `<option value="${y}" ${y === current ? "selected" : ""}>${y}</option>`).join("");
+  await refreshFeeAmount();
+  select.addEventListener("change", refreshFeeAmount);
+}
+
+async function refreshFeeAmount() {
+  const year = document.getElementById("fee-year-select").value;
+  const amount = await getEffectiveCategoryAmount("Membership Fee", parseInt(year, 10));
+  document.getElementById("fee-amount-label").textContent = amount != null ? `${year} fee: Rs ${Number(amount).toFixed(2)}` : `${year} fee: not set`;
+}
+
+document.getElementById("edit-btn").addEventListener("click", () => {
+  if (selectedId) window.location.href = `member-detail.html?id=${selectedId}&edit=1`;
+});
+
+document.getElementById("view-payments-btn").addEventListener("click", () => {
+  if (selectedId) window.location.href = `member-detail.html?id=${selectedId}`;
+});
+
+document.getElementById("delete-btn").addEventListener("click", () => {
+  document.getElementById("delete-reason-bar").style.display = "flex";
+});
+
+document.getElementById("cancel-delete-btn").addEventListener("click", () => {
+  document.getElementById("delete-reason-bar").style.display = "none";
+});
+
+document.getElementById("confirm-delete-btn").addEventListener("click", async () => {
+  const reason = document.getElementById("delete-reason-input").value.trim();
+  if (!reason) { flash("Enter a reason for removal first.", "error"); return; }
+  const member = allMembers.find((m) => String(m.id) === String(selectedId));
+  try {
+    await deleteMemberAndArchive(member, reason, profile.username || profile.role);
+    flash(`Member ${member.member_code} removed.`, "success");
+    document.getElementById("delete-reason-bar").style.display = "none";
+    selectedId = null;
+    await load();
+  } catch (err) {
+    flash(err.message, "error");
+  }
+});
+
+document.getElementById("export-btn").addEventListener("click", async () => {
+  const societyName = await getSocietyName();
+  await exportAllMembersReport(societyName, allMembers);
+});
+
+document.getElementById("refresh-btn").addEventListener("click", load);
 
 async function load() {
-  const profile = await requireAuth("admin");
+  profile = await requireAuth("admin_or_viewer");
   if (!profile) return;
   await renderHeader("members", profile);
-  const members = await getAllMembers();
-  renderMembers(members);
+  applyViewerRestrictions(profile);
+  allMembers = await getAllMembers();
+  renderRows(allMembers);
+  document.getElementById("footer-count").textContent = `Total members: ${allMembers.length}`;
+  await loadFeeYear();
 }
-
-document.getElementById("search-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const q = document.getElementById("search-input").value.trim();
-  const members = q ? await searchMembers(q) : await getAllMembers();
-  renderMembers(members);
-});
-
-document.getElementById("export-all").addEventListener("click", async () => {
-  const [societyName, members] = await Promise.all([getSocietyName(), getAllMembersWithTotals()]);
-  await exportAllMembersReport(societyName, members);
-});
 
 load().catch((e) => {
   console.error(e);

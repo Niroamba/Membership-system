@@ -256,8 +256,51 @@ async function deleteNews(id) {
 }
 
 // ---------------------------------------------------------------------
-// Settings
+// Membership duration (client-side port of the desktop app's calc)
 // ---------------------------------------------------------------------
+
+function computeMembershipDuration(joinedDateStr) {
+  if (!joinedDateStr) return "—";
+  const joined = new Date(joinedDateStr + "T00:00:00");
+  if (isNaN(joined.getTime())) return "—";
+  const today = new Date();
+  if (joined > today) return "—";
+  let monthsTotal = (today.getFullYear() - joined.getFullYear()) * 12 + (today.getMonth() - joined.getMonth());
+  if (today.getDate() < joined.getDate()) monthsTotal -= 1;
+  if (monthsTotal < 0) monthsTotal = 0;
+  const years = Math.floor(monthsTotal / 12);
+  const months = monthsTotal % 12;
+  if (years === 0 && months === 0) return "< 1 mo";
+  const parts = [];
+  if (years) parts.push(`${years} yr${years !== 1 ? "s" : ""}`);
+  if (months) parts.push(`${months} mo${months !== 1 ? "s" : ""}`);
+  return parts.join(" ");
+}
+
+// ---------------------------------------------------------------------
+// Backup — downloads every table as one JSON file (the web equivalent of
+// the old desktop app's "Backup Now" button copying decors.db)
+// ---------------------------------------------------------------------
+
+async function backupAllData() {
+  const tables = ["members", "categories", "category_year_amounts", "charges", "payments", "news", "removed_members", "app_settings"];
+  const backup = { created_at: new Date().toISOString(), tables: {} };
+  for (const t of tables) {
+    const { data, error } = await sb().from(t).select("*");
+    if (error) throw error;
+    backup.tables[t] = data;
+  }
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  a.href = url;
+  a.download = `decors_backup_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
 
 async function setSetting(key, value) {
   const { error } = await sb().from("app_settings").upsert({ key, value }, { onConflict: "key" });

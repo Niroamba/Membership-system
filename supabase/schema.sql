@@ -83,7 +83,7 @@ insert into public.app_settings (key, value) values ('society_name', 'My Society
 -- (for members) to a row in public.members.
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
-  role        text not null check (role in ('admin', 'member')),
+  role        text not null check (role in ('admin', 'viewer', 'member')),
   member_id   bigint references public.members(id) on delete set null,
   username    text,
   created_at  timestamptz not null default now()
@@ -97,6 +97,20 @@ create or replace function public.is_admin()
 returns boolean language sql stable security definer as $$
   select exists (
     select 1 from public.profiles where id = auth.uid() and role = 'admin'
+  );
+$$;
+
+create or replace function public.is_admin_or_viewer()
+returns boolean language sql stable security definer as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role in ('admin', 'viewer')
+  );
+$$;
+
+create or replace function public.is_viewer()
+returns boolean language sql stable security definer as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role = 'viewer'
   );
 $$;
 
@@ -141,37 +155,58 @@ alter table public.removed_members enable row level security;
 alter table public.app_settings enable row level security;
 alter table public.profiles enable row level security;
 
--- members: admin full access; a member can read only their own row
+-- members: admin full access; viewer can read everything but not write;
+-- a member can read only their own row
 drop policy if exists "members_admin_all" on public.members;
 create policy "members_admin_all" on public.members
   for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "members_viewer_select" on public.members;
+create policy "members_viewer_select" on public.members
+  for select using (public.is_admin_or_viewer());
 
 drop policy if exists "members_self_select" on public.members;
 create policy "members_self_select" on public.members
   for select using (id = public.my_member_id());
 
--- categories / category_year_amounts: admin only (members don't need these)
+-- categories / category_year_amounts: admin writes; admin+viewer can read
 drop policy if exists "categories_admin_all" on public.categories;
 create policy "categories_admin_all" on public.categories
   for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "categories_viewer_select" on public.categories;
+create policy "categories_viewer_select" on public.categories
+  for select using (public.is_admin_or_viewer());
 
 drop policy if exists "category_years_admin_all" on public.category_year_amounts;
 create policy "category_years_admin_all" on public.category_year_amounts
   for all using (public.is_admin()) with check (public.is_admin());
 
--- charges: admin full access; member can read only their own charges
+drop policy if exists "category_years_viewer_select" on public.category_year_amounts;
+create policy "category_years_viewer_select" on public.category_year_amounts
+  for select using (public.is_admin_or_viewer());
+
+-- charges: admin full access; viewer read-only; member can read only their own
 drop policy if exists "charges_admin_all" on public.charges;
 create policy "charges_admin_all" on public.charges
   for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "charges_viewer_select" on public.charges;
+create policy "charges_viewer_select" on public.charges
+  for select using (public.is_admin_or_viewer());
 
 drop policy if exists "charges_self_select" on public.charges;
 create policy "charges_self_select" on public.charges
   for select using (member_id = public.my_member_id());
 
--- payments: admin full access; member can read only payments on their own charges
+-- payments: admin full access; viewer read-only; member reads only their own
 drop policy if exists "payments_admin_all" on public.payments;
 create policy "payments_admin_all" on public.payments
   for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "payments_viewer_select" on public.payments;
+create policy "payments_viewer_select" on public.payments
+  for select using (public.is_admin_or_viewer());
 
 drop policy if exists "payments_self_select" on public.payments;
 create policy "payments_self_select" on public.payments
@@ -179,7 +214,7 @@ create policy "payments_self_select" on public.payments
     charge_id in (select id from public.charges where member_id = public.my_member_id())
   );
 
--- news: admin full access; any signed-in user (admin or member) can read
+-- news: admin full access; any signed-in user (admin, viewer, or member) can read
 drop policy if exists "news_admin_all" on public.news;
 create policy "news_admin_all" on public.news
   for all using (public.is_admin()) with check (public.is_admin());
@@ -188,10 +223,14 @@ drop policy if exists "news_authenticated_select" on public.news;
 create policy "news_authenticated_select" on public.news
   for select using (auth.role() = 'authenticated');
 
--- removed_members: admin only
+-- removed_members: admin full access; viewer read-only
 drop policy if exists "removed_admin_all" on public.removed_members;
 create policy "removed_admin_all" on public.removed_members
   for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "removed_viewer_select" on public.removed_members;
+create policy "removed_viewer_select" on public.removed_members
+  for select using (public.is_admin_or_viewer());
 
 -- app_settings: admin can write; anyone (even signed-out, for the login
 -- page's branding) can read
@@ -204,14 +243,15 @@ create policy "settings_public_select" on public.app_settings
   for select using (true);
 
 -- profiles: everyone can read their own profile; admins can read + update
--- everyone's (needed to promote a member to admin, or view the admin list)
+-- everyone's (needed to view the admin/viewer list); viewers can read the
+-- list too (view-only) but never update it
 drop policy if exists "profiles_self_select" on public.profiles;
 create policy "profiles_self_select" on public.profiles
   for select using (id = auth.uid());
 
 drop policy if exists "profiles_admin_select" on public.profiles;
 create policy "profiles_admin_select" on public.profiles
-  for select using (public.is_admin());
+  for select using (public.is_admin_or_viewer());
 
 drop policy if exists "profiles_admin_update" on public.profiles;
 create policy "profiles_admin_update" on public.profiles

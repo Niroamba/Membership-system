@@ -20,14 +20,29 @@
   </div>
 
   <h2 class="section">Overview</h2>
-  <div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="totals-holder">Loading…</div>
-
-  <h2 class="section">Members</h2>
-  <div class="row-actions" style="margin:0 0 10px;">
-    <a class="btn" href="member-detail.html">+ Add Member</a>
-    <button class="btn secondary" id="export-all">Export All Members (Word)</button>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="background:#2952E3;border-radius:12px;padding:14px;">
+      <div style="color:#c9d4fb;font-size:12px;">Members</div>
+      <div style="color:#fff;font-size:24px;font-weight:600;font-family:Georgia,serif;" id="tile-members">—</div>
+    </div>
+    <div style="background:#2BAE66;border-radius:12px;padding:14px;">
+      <div style="color:#dcf5e6;font-size:12px;">Collected</div>
+      <div style="color:#fff;font-size:24px;font-weight:600;font-family:Georgia,serif;" id="tile-collected">—</div>
+    </div>
+    <div style="background:#FFB627;border-radius:12px;padding:14px;">
+      <div style="color:#5c3f00;font-size:12px;">Expected</div>
+      <div style="color:#3d2900;font-size:24px;font-weight:600;font-family:Georgia,serif;" id="tile-expected">—</div>
+    </div>
+    <div style="background:#FF5D5D;border-radius:12px;padding:14px;">
+      <div style="color:#fff0ef;font-size:12px;">Outstanding</div>
+      <div style="color:#fff;font-size:24px;font-weight:600;font-family:Georgia,serif;" id="tile-outstanding">—</div>
+    </div>
   </div>
-  <div id="members-holder"><div class="empty">Loading…</div></div>
+
+  <div class="row-actions" style="margin:18px 0;">
+    <a class="btn" href="members.html">View all members</a>
+    <a class="btn secondary" href="member-detail.html" data-admin-only>+ Add member</a>
+  </div>
 </div>
 
 <script src="config.js"></script>
@@ -35,16 +50,13 @@
 <script src="js/auth.js"></script>
 <script src="js/layout.js"></script>
 <script src="js/data.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/docx@9/build/index.umd.js"></script>
-<script src="js/reports.js"></script>
 <script src="js/service-worker-register.js"></script>
 <script>
-let allMembers = [];
-
 async function load() {
-  const profile = await requireAuth("admin");
+  const profile = await requireAuth("admin_or_viewer");
   if (!profile) return;
   await renderHeader("dashboard", profile);
+  applyViewerRestrictions(profile);
 
   const news = await getAllNews();
   if (news.length) {
@@ -62,41 +74,13 @@ async function load() {
       .join("");
   }
 
-  allMembers = await getAllMembersWithTotals();
-  const totals = summarizeTotals(allMembers);
-  document.getElementById("totals-holder").innerHTML = `
-    <div><div class="muted">Total Members</div><div style="font-family:Georgia,serif;font-size:22px;">${totals.total_members}</div></div>
-    <div><div class="muted">Total Collected</div><div style="font-family:Georgia,serif;font-size:22px;">${money(totals.total_collected)}</div></div>
-    <div><div class="muted">Total Expected</div><div style="font-family:Georgia,serif;font-size:22px;">${money(totals.total_expected)}</div></div>
-    <div><div class="muted">Outstanding</div><div style="font-family:Georgia,serif;font-size:22px;">${money(totals.total_outstanding)}</div></div>
-  `;
-
-  const holder = document.getElementById("members-holder");
-  if (allMembers.length === 0) {
-    holder.innerHTML = `<div class="empty">No members yet — add your first one above.</div>`;
-    return;
-  }
-  holder.innerHTML = allMembers
-    .map(
-      (m) => `
-    <a href="member-detail.html?id=${m.id}" style="text-decoration:none;color:inherit;">
-    <div class="card" style="margin:10px 0;">
-      <div style="font-family:Georgia,serif;font-size:17px;">${m.name} <span class="muted" style="font-size:11px;">${m.member_code}</span></div>
-      <div class="muted" style="font-size:12px;margin-bottom:6px;">${m.phone_number || ""}</div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;">
-        <span>Charged: ${money(m.total_charged)} · Paid: ${money(m.total_paid)}</span>
-        ${m.balance > 0 ? `<span class="badge unpaid">Balance ${money(m.balance)}</span>` : `<span class="badge paid">Fully Paid</span>`}
-      </div>
-    </div>
-    </a>`
-    )
-    .join("");
+  const members = await getAllMembersWithTotals();
+  const totals = summarizeTotals(members);
+  document.getElementById("tile-members").textContent = totals.total_members;
+  document.getElementById("tile-collected").textContent = money(totals.total_collected);
+  document.getElementById("tile-expected").textContent = money(totals.total_expected);
+  document.getElementById("tile-outstanding").textContent = money(totals.total_outstanding);
 }
-
-document.getElementById("export-all").addEventListener("click", async () => {
-  const societyName = await getSocietyName();
-  await exportAllMembersReport(societyName, allMembers);
-});
 
 load().catch((e) => {
   console.error(e);

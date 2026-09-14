@@ -1,8 +1,10 @@
 :root{
   --ink:#1f2933; --paper:#f6f4ef; --line:#d8d2c4; --gold:#a9812f;
   --paid:#3f6b3f; --unpaid:#a13a3a; --card:#ffffff;
+  --app-font-scale: 1;
 }
 *{box-sizing:border-box;}
+html{ font-size: calc(16px * var(--app-font-scale)); }
 body{
   margin:0; background:var(--paper); color:var(--ink);
   font-family:'Helvetica Neue', Arial, sans-serif; padding-bottom:60px;

@@ -19,11 +19,11 @@
     <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Branding</div>
     <form id="branding-form">
       <label>Society / Organisation Name</label>
-      <input type="text" id="b-name">
+      <input type="text" id="b-name" data-admin-only>
       <label>Logo</label>
-      <input type="file" id="b-logo" accept="image/*">
+      <input type="file" id="b-logo" accept="image/*" data-admin-only>
       <p class="muted" style="font-size:11.5px;">Uploading needs a public Storage bucket named <code>branding</code> — see README. Without it, you can still save the name.</p>
-      <div class="row-actions"><button class="btn" type="submit">Save Branding</button></div>
+      <div class="row-actions"><button class="btn" type="submit" data-admin-only>Save Branding</button></div>
     </form>
   </div>
 
@@ -33,9 +33,9 @@
       <tr><th>Category</th><th>Default Amount</th><th></th></tr>
     </table>
     <form id="add-category-form" class="row-actions" style="margin-top:12px;">
-      <input type="text" id="new-cat-name" placeholder="New category name" required style="max-width:200px;">
-      <input type="number" step="0.01" id="new-cat-amount" placeholder="Default amount (optional)" style="max-width:180px;">
-      <button class="btn small" type="submit">Add Category</button>
+      <input type="text" id="new-cat-name" placeholder="New category name" required style="max-width:200px;" data-admin-only>
+      <input type="number" step="0.01" id="new-cat-amount" placeholder="Default amount (optional)" style="max-width:180px;" data-admin-only>
+      <button class="btn small" type="submit" data-admin-only>Add Category</button>
     </form>
   </div>
 
@@ -43,20 +43,31 @@
     <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Membership Fee by Year</div>
     <p class="muted">Set a specific amount for "Membership Fee" in a given year. New charges for that year default to it.</p>
     <form id="year-amount-form" class="row-actions">
-      <input type="number" id="ya-year" placeholder="Year" style="max-width:110px;">
-      <input type="number" step="0.01" id="ya-amount" placeholder="Amount" required style="max-width:150px;">
-      <button class="btn small" type="submit">Save</button>
+      <input type="number" id="ya-year" placeholder="Year" style="max-width:110px;" data-admin-only>
+      <input type="number" step="0.01" id="ya-amount" placeholder="Amount" required style="max-width:150px;" data-admin-only>
+      <button class="btn small" type="submit" data-admin-only>Save</button>
     </form>
   </div>
 
   <div class="card">
-    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Admins</div>
-    <table class="simple" id="admins-table"><tr><th>Email / username</th></tr></table>
-    <p class="muted" style="font-size:12px;margin-top:10px;">To make someone an admin: have them create an account on the login page first, then paste their email below to promote them.</p>
-    <form id="promote-form" class="row-actions">
-      <input type="email" id="promote-email" placeholder="their@email.com" required style="max-width:240px;">
-      <button class="btn small" type="submit">Promote to Admin</button>
+    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Login Accounts</div>
+    <p class="muted">Admins can view and edit everything. Viewers (up to 3) can see every page but can't add, edit, or delete anything.</p>
+    <table class="simple" id="logins-table"><tr><th>Username</th><th>Access level</th></tr></table>
+    <form id="add-login-form" class="row-actions" style="margin-top:12px;flex-wrap:wrap;">
+      <input type="text" id="new-login-username" placeholder="Username" required style="max-width:160px;" data-admin-only>
+      <input type="password" id="new-login-password" placeholder="Password (min 6 chars)" required style="max-width:200px;" data-admin-only>
+      <select id="new-login-role" style="max-width:160px;" data-admin-only>
+        <option value="admin">Admin (full access)</option>
+        <option value="viewer">Viewer (view only)</option>
+      </select>
+      <button class="btn small" type="submit" data-admin-only>Add New Login</button>
     </form>
+    <p class="muted" style="font-size:11.5px;margin-top:8px;">Needs the <code>create-login</code> Edge Function deployed — see README Phase 2. Alternatively, an admin can create their own account with a real email on the login page's "Create an account" screen.</p>
+  </div>
+
+  <div class="card">
+    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Account Recovery</div>
+    <p class="muted">Admin passwords reset themselves via the "Forgot your password?" link on the sign-in page, using the email address they signed up with — no separate recovery key needed on the web.</p>
   </div>
 </div>
 
@@ -67,6 +78,8 @@
 <script src="js/data.js"></script>
 <script src="js/service-worker-register.js"></script>
 <script>
+let currentProfile = null;
+
 async function refreshCategories() {
   const categories = await listCategories();
   const table = document.getElementById("categories-table");
@@ -79,11 +92,11 @@ async function refreshCategories() {
         <td>${c.name}</td>
         <td>
           <form class="cat-update-form row-actions" data-name="${c.name}" style="gap:6px;">
-            <input type="number" step="0.01" name="default_amount" value="${c.default_amount ?? ""}" placeholder="open amount" style="width:110px;">
-            <button class="btn small" type="submit">Save</button>
+            <input type="number" step="0.01" name="default_amount" value="${c.default_amount ?? ""}" placeholder="open amount" style="width:110px;" data-admin-only>
+            <button class="btn small" type="submit" data-admin-only>Save</button>
           </form>
         </td>
-        <td><button class="btn danger small" data-delete-cat="${c.name}">Delete</button></td>
+        <td><button class="btn danger small" data-delete-cat="${c.name}" data-admin-only>Delete</button></td>
       </tr>`
       )
       .join("");
@@ -101,14 +114,22 @@ async function refreshCategories() {
       if (!confirm("Remove this category from the list?")) return;
       await deleteCategory(btn.dataset.deleteCat);
       await refreshCategories();
+      applyViewerRestrictions(currentProfile);
     });
   });
+  applyViewerRestrictions(currentProfile);
 }
 
-async function refreshAdmins() {
-  const admins = await listAdminProfiles();
-  const table = document.getElementById("admins-table");
-  table.innerHTML = `<tr><th>Username</th></tr>` + admins.map((a) => `<tr><td>${a.username || a.id}</td></tr>`).join("");
+async function refreshLogins() {
+  const { data, error } = await window.supabaseClient
+    .from("profiles")
+    .select("username, role")
+    .in("role", ["admin", "viewer"]);
+  if (error) throw error;
+  const table = document.getElementById("logins-table");
+  table.innerHTML =
+    `<tr><th>Username</th><th>Access level</th></tr>` +
+    data.map((a) => `<tr><td>${a.username || "(self-signed-up admin)"}</td><td>${a.role}</td></tr>`).join("");
 }
 
 document.getElementById("branding-form").addEventListener("submit", async (e) => {
@@ -151,23 +172,32 @@ document.getElementById("year-amount-form").addEventListener("submit", async (e)
   flash(`Membership Fee amount for ${year} saved.`, "success");
 });
 
-document.getElementById("promote-form").addEventListener("submit", async (e) => {
+document.getElementById("add-login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const email = document.getElementById("promote-email").value.trim();
-  flash(
-    "Promoting by email needs a small Edge Function or the Supabase Dashboard (Authentication → Users → find them → copy their User UID, " +
-      "then Table Editor → profiles → set their role to 'admin'). A one-click version can be added as an Edge Function later.",
-    "error"
-  );
+  const username = document.getElementById("new-login-username").value.trim();
+  const password = document.getElementById("new-login-password").value;
+  const role = document.getElementById("new-login-role").value;
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke("create-login", {
+      body: { username, password, role },
+    });
+    if (error) throw error;
+    flash(`Login created — username: ${data.username}, access: ${data.role}. Share the password with them directly.`, "success");
+    document.getElementById("add-login-form").reset();
+    await refreshLogins();
+  } catch (err) {
+    flash("Couldn't reach the 'create-login' Edge Function. Deploy it first (README Phase 2). Details: " + err.message, "error");
+  }
 });
 
 async function load() {
-  const profile = await requireAuth("admin");
-  if (!profile) return;
-  await renderHeader("settings", profile);
+  currentProfile = await requireAuth("admin_or_viewer");
+  if (!currentProfile) return;
+  await renderHeader("settings", currentProfile);
   document.getElementById("b-name").value = await getSocietyName();
   await refreshCategories();
-  await refreshAdmins();
+  await refreshLogins();
+  applyViewerRestrictions(currentProfile);
 }
 load().catch((e) => flash("Couldn't load settings: " + e.message, "error"));
 </script>

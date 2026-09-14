@@ -31,9 +31,10 @@
 <script>
 let rows = [];
 async function load() {
-  const profile = await requireAuth("admin");
+  const profile = await requireAuth("admin_or_viewer");
   if (!profile) return;
   await renderHeader("removed-members", profile);
+  applyViewerRestrictions(profile);
   rows = await getRemovedMembers();
   const holder = document.getElementById("rows-holder");
   if (rows.length === 0) {

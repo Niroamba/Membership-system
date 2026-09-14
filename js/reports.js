@@ -42,17 +42,18 @@ async function saveDoc(doc, filename) {
 }
 
 async function exportAllMembersReport(societyName, members) {
-  const { Document, Paragraph, HeadingLevel, Table, TableRow, TableCell, TextRun } = docx;
-  const rows = [headingRow(["Member ID", "Name", "Phone", "Charged", "Paid", "Balance"])];
+  const { Document, Paragraph, HeadingLevel, Table, TextRun } = docx;
+  const rows = [headingRow(["Member ID", "Name", "Joined date", "Phone", "Address", "Remarks", "Membership duration"])];
   members.forEach((m) => {
     rows.push(
       dataRow([
         m.member_code,
         m.name,
+        m.joined_date || "",
         m.phone_number || "",
-        money(m.total_charged),
-        money(m.total_paid),
-        money(m.balance),
+        m.address || "",
+        m.remarks || "-",
+        computeMembershipDuration(m.joined_date),
       ])
     );
   });

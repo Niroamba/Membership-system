@@ -96,9 +96,10 @@ document.getElementById("export-btn").addEventListener("click", async () => {
 });
 
 async function load() {
-  const profile = await requireAuth("admin");
+  const profile = await requireAuth("admin_or_viewer");
   if (!profile) return;
   await renderHeader("payment-details", profile);
+  applyViewerRestrictions(profile);
   const categories = await listCategories();
   document.getElementById("f-category").innerHTML = categories.map((c) => `<option value="${c.name}">${c.name}</option>`).join("");
   currentCategory = categories.length ? categories[0].name : "";
