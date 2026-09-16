@@ -71,19 +71,21 @@ const FONT_SCALE_MAX = 1.4;
 
 function applyFontScale() {
   const saved = parseFloat(localStorage.getItem("app_font_scale") || "1");
-  document.documentElement.style.setProperty("--app-font-scale", saved);
+  document.body.style.zoom = saved;
 }
 
 function adjustFontScale(delta) {
   let current = parseFloat(localStorage.getItem("app_font_scale") || "1");
   current = Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, current + delta));
   localStorage.setItem("app_font_scale", current);
-  document.documentElement.style.setProperty("--app-font-scale", current);
+  document.body.style.zoom = current;
 }
 
 (function initFontScaleEarly() {
-  const saved = parseFloat(localStorage.getItem("app_font_scale") || "1");
-  document.documentElement.style.setProperty("--app-font-scale", saved);
+  document.addEventListener("DOMContentLoaded", () => {
+    const saved = parseFloat(localStorage.getItem("app_font_scale") || "1");
+    document.body.style.zoom = saved;
+  });
 })();
 
 function flash(message, type = "success") {

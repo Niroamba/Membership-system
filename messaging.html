@@ -13,30 +13,35 @@
 <header class="top" id="app-header"></header>
 <div class="wrap">
   <div id="flash-holder"></div>
-  <h2 class="section">Messaging</h2>
 
-  <div class="flash error">
-    SMS needs the optional <code>send-sms</code> Edge Function deployed with your Twilio credentials
-    (see README Phase 2). Until then, sending will show an error here — everything else in the system
-    works without it.
-  </div>
+  <div class="bold-wrap" style="margin-top:16px;">
+    <div class="bold-toolbar"><h2>Messaging</h2></div>
+    <div class="bold-wrap-body">
 
-  <div class="card">
-    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Send to one member</div>
-    <form id="search-form" class="row-actions">
-      <input type="text" id="search-input" placeholder="Search by Member ID or name">
-      <button class="btn small" type="submit">Search</button>
-    </form>
-    <div id="matches-holder"></div>
-  </div>
+      <div class="flash error" style="margin-top:0;">
+        SMS needs the optional <code>send-sms</code> Edge Function deployed with your Twilio credentials
+        (see README Phase 2). Until then, sending will show an error here — everything else in the system
+        works without it.
+      </div>
 
-  <div class="card">
-    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Message all members</div>
-    <form id="broadcast-form">
-      <label>Message</label>
-      <textarea id="broadcast-message" required></textarea>
-      <div class="row-actions"><button class="btn" type="submit" data-admin-only>Send to All</button></div>
-    </form>
+      <div class="panel blue" style="margin-bottom:14px;">
+        <div class="panel-title">Send to one member</div>
+        <form id="search-form" class="row-actions" style="margin-top:0;">
+          <input type="text" id="search-input" placeholder="Search by Member ID or name">
+          <button class="panel-btn" type="submit">Search</button>
+        </form>
+        <div id="matches-holder"></div>
+      </div>
+
+      <div class="panel amber">
+        <div class="panel-title">Message all members</div>
+        <form id="broadcast-form">
+          <label>Message</label>
+          <textarea id="broadcast-message" required></textarea>
+          <div class="row-actions"><button class="panel-btn" type="submit" data-admin-only>Send to all</button></div>
+        </form>
+      </div>
+    </div>
   </div>
 
   <div id="results-card" class="card" style="display:none;">
@@ -82,7 +87,7 @@ document.getElementById("search-form").addEventListener("submit", async (e) => {
       </select>
       <label>Message</label>
       <textarea id="single-message" required></textarea>
-      <div class="row-actions"><button class="btn" type="submit" data-admin-only>Send</button></div>
+      <div class="row-actions"><button class="panel-btn" type="submit" data-admin-only>Send</button></div>
     </form>`;
   applyViewerRestrictions(currentProfile);
   document.getElementById("single-send-form").addEventListener("submit", async (ev) => {

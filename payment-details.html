@@ -13,17 +13,23 @@
 <header class="top" id="app-header"></header>
 <div class="wrap">
   <div id="flash-holder"></div>
-  <h2 class="section">Payment Details</h2>
-  <div class="card">
-    <form id="filter-form" class="row-actions" style="align-items:end;">
-      <div><label style="margin-top:0;">Category</label><select id="f-category"></select></div>
-      <div><label style="margin-top:0;">Year</label><select id="f-year"><option value="">All years</option></select></div>
-      <button class="btn small" type="submit">Filter</button>
-    </form>
+
+  <div class="bold-wrap" style="margin-top:16px;">
+    <div class="bold-toolbar">
+      <h2>Payment details</h2>
+      <div class="bold-actions">
+        <button class="bold-btn gold" id="export-btn">Export to Word</button>
+      </div>
+    </div>
+    <div class="bold-wrap-body">
+      <form id="filter-form" class="row-actions" style="align-items:end;margin:0;">
+        <div><label style="margin-top:0;">Category</label><select id="f-category"></select></div>
+        <div><label style="margin-top:0;">Year</label><select id="f-year"><option value="">All years</option></select></div>
+        <button class="btn small" type="submit">Filter</button>
+      </form>
+    </div>
   </div>
-  <div class="row-actions" style="margin:0 0 12px;">
-    <button class="btn secondary" id="export-btn">Export This View (Word)</button>
-  </div>
+
   <div class="card"><div id="rows-holder"><div class="empty">Choose a category above.</div></div></div>
 </div>
 

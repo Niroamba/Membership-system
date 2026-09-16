@@ -27,47 +27,58 @@
     </form>
   </div>
 
-  <div class="card">
-    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Payment Categories</div>
-    <table class="simple" id="categories-table">
-      <tr><th>Category</th><th>Default Amount</th><th></th></tr>
-    </table>
-    <form id="add-category-form" class="row-actions" style="margin-top:12px;">
-      <input type="text" id="new-cat-name" placeholder="New category name" required style="max-width:200px;" data-admin-only>
-      <input type="number" step="0.01" id="new-cat-amount" placeholder="Default amount (optional)" style="max-width:180px;" data-admin-only>
-      <button class="btn small" type="submit" data-admin-only>Add Category</button>
-    </form>
-  </div>
+  <div class="panel-grid">
 
-  <div class="card">
-    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Membership Fee by Year</div>
-    <p class="muted">Set a specific amount for "Membership Fee" in a given year. New charges for that year default to it.</p>
-    <form id="year-amount-form" class="row-actions">
-      <input type="number" id="ya-year" placeholder="Year" style="max-width:110px;" data-admin-only>
-      <input type="number" step="0.01" id="ya-amount" placeholder="Amount" required style="max-width:150px;" data-admin-only>
-      <button class="btn small" type="submit" data-admin-only>Save</button>
-    </form>
-  </div>
+    <div class="panel green">
+      <div class="panel-title">Payment categories</div>
+      <div class="panel-body">Alms giving, annual trip, event fund — the things members can be charged for besides membership fee.</div>
+      <table class="simple" id="categories-table" style="background:transparent;">
+        <tr><th>Category</th><th>Default Amount</th><th></th></tr>
+      </table>
+      <form id="add-category-form" class="row-actions" style="margin-top:10px;">
+        <input type="text" id="new-cat-name" placeholder="New category name" required style="max-width:160px;" data-admin-only>
+        <input type="number" step="0.01" id="new-cat-amount" placeholder="Amount (optional)" style="max-width:140px;" data-admin-only>
+        <button class="panel-btn" type="submit" data-admin-only>+ Add category</button>
+      </form>
+    </div>
 
-  <div class="card">
-    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Login Accounts</div>
-    <p class="muted">Admins can view and edit everything. Viewers (up to 3) can see every page but can't add, edit, or delete anything.</p>
-    <table class="simple" id="logins-table"><tr><th>Username</th><th>Access level</th></tr></table>
-    <form id="add-login-form" class="row-actions" style="margin-top:12px;flex-wrap:wrap;">
-      <input type="text" id="new-login-username" placeholder="Username" required style="max-width:160px;" data-admin-only>
-      <input type="password" id="new-login-password" placeholder="Password (min 6 chars)" required style="max-width:200px;" data-admin-only>
-      <select id="new-login-role" style="max-width:160px;" data-admin-only>
-        <option value="admin">Admin (full access)</option>
-        <option value="viewer">Viewer (view only)</option>
-      </select>
-      <button class="btn small" type="submit" data-admin-only>Add New Login</button>
-    </form>
-    <p class="muted" style="font-size:11.5px;margin-top:8px;">Needs the <code>create-login</code> Edge Function deployed — see README Phase 2. Alternatively, an admin can create their own account with a real email on the login page's "Create an account" screen.</p>
-  </div>
+    <div class="panel blue">
+      <div class="panel-title">Login accounts</div>
+      <div class="panel-body">Admins can view and edit everything. Viewers (up to 3) can see every page but can't add, edit, or delete anything.</div>
+      <table class="simple" id="logins-table" style="background:transparent;"><tr><th>Username</th><th>Access level</th></tr></table>
+      <form id="add-login-form" class="row-actions" style="margin-top:10px;flex-wrap:wrap;">
+        <input type="text" id="new-login-username" placeholder="Username" required style="max-width:130px;" data-admin-only>
+        <input type="password" id="new-login-password" placeholder="Password" required style="max-width:130px;" data-admin-only>
+        <select id="new-login-role" style="max-width:140px;" data-admin-only>
+          <option value="admin">Admin</option>
+          <option value="viewer">Viewer</option>
+        </select>
+        <button class="panel-btn" type="submit" data-admin-only>+ Add login</button>
+      </form>
+      <p class="panel-body" style="font-size:11px;margin:8px 0 0;">Needs the <code>create-login</code> Edge Function deployed (README Phase 2).</p>
+    </div>
 
-  <div class="card">
-    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Account Recovery</div>
-    <p class="muted">Admin passwords reset themselves via the "Forgot your password?" link on the sign-in page, using the email address they signed up with — no separate recovery key needed on the web.</p>
+    <div class="panel amber">
+      <div class="panel-title">Membership fee by year</div>
+      <div class="panel-body">Set this year's fee once — it fills in automatically for every new charge.</div>
+      <form id="year-amount-form" class="row-actions" style="margin-top:0;">
+        <input type="number" id="ya-year" placeholder="Year" style="max-width:100px;" data-admin-only>
+        <input type="number" step="0.01" id="ya-amount" placeholder="Amount" required style="max-width:130px;" data-admin-only>
+        <button class="panel-btn" type="submit" data-admin-only>Save</button>
+      </form>
+    </div>
+
+    <div class="panel pink">
+      <div class="panel-title">Account recovery</div>
+      <div class="panel-body">Admin passwords reset themselves via "Forgot your password?" on the sign-in page, using the email you signed up with — no separate recovery key needed on the web.</div>
+    </div>
+
+    <div class="panel purple">
+      <div class="panel-title">Removed members</div>
+      <div class="panel-body">Every deleted member stays on record with the reason given.</div>
+      <a class="panel-btn" href="removed-members.html">View records</a>
+    </div>
+
   </div>
 </div>
 

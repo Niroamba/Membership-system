@@ -13,11 +13,16 @@
 <header class="top" id="app-header"></header>
 <div class="wrap">
   <div id="flash-holder"></div>
-  <h2 class="section">Announcements</h2>
-  <div class="row-actions" style="margin:0 0 16px;">
-    <a class="btn" href="news-form.html" data-admin-only>+ New Announcement</a>
+
+  <div class="bold-wrap" style="margin-top:16px;">
+    <div class="bold-toolbar">
+      <h2>Announcements</h2>
+      <div class="bold-actions">
+        <a class="bold-btn primary" href="news-form.html" data-admin-only>+ New announcement</a>
+      </div>
+    </div>
+    <div class="bold-wrap-body" id="posts-holder">Loading…</div>
   </div>
-  <div id="posts-holder">Loading…</div>
 </div>
 
 <script src="config.js"></script>
@@ -41,7 +46,7 @@ async function load() {
   holder.innerHTML = posts
     .map(
       (n) => `
-    <div class="card">
+    <div class="card" style="border-left:5px solid #7C6FE0;margin:0 0 12px;">
       <div style="font-family:Georgia,serif;font-size:16px;">${n.title}</div>
       <div class="muted" style="font-size:11px;margin-bottom:8px;">${new Date(n.posted_on).toLocaleString()}${n.posted_by ? " · " + n.posted_by : ""}</div>
       <div style="font-size:13.5px;white-space:pre-wrap;margin-bottom:10px;">${n.content}</div>
