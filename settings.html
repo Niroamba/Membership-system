@@ -15,15 +15,15 @@
   <div id="flash-holder"></div>
   <h2 class="section">Settings</h2>
 
-  <div class="card">
-    <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:10px;">Branding</div>
+  <div class="panel teal" style="margin-bottom:20px;">
+    <div class="panel-title">Branding</div>
     <form id="branding-form">
-      <label>Society / Organisation Name</label>
+      <label style="margin-top:0;">Society / Organisation Name</label>
       <input type="text" id="b-name" data-admin-only>
       <label>Logo</label>
       <input type="file" id="b-logo" accept="image/*" data-admin-only>
-      <p class="muted" style="font-size:11.5px;">Uploading needs a public Storage bucket named <code>branding</code> — see README. Without it, you can still save the name.</p>
-      <div class="row-actions"><button class="btn" type="submit" data-admin-only>Save Branding</button></div>
+      <p class="panel-body" style="font-size:11px;margin:6px 0 10px;">Uploading needs a public Storage bucket named <code>branding</code> — see README. Without it, you can still save the name.</p>
+      <button class="panel-btn" type="submit" data-admin-only>Save Branding</button>
     </form>
   </div>
 
@@ -31,15 +31,17 @@
 
     <div class="panel green">
       <div class="panel-title">Payment categories</div>
-      <div class="panel-body">Alms giving, annual trip, event fund — the things members can be charged for besides membership fee.</div>
-      <table class="simple" id="categories-table" style="background:transparent;">
-        <tr><th>Category</th><th>Default Amount</th><th></th></tr>
-      </table>
-      <form id="add-category-form" class="row-actions" style="margin-top:10px;">
-        <input type="text" id="new-cat-name" placeholder="New category name" required style="max-width:160px;" data-admin-only>
-        <input type="number" step="0.01" id="new-cat-amount" placeholder="Amount (optional)" style="max-width:140px;" data-admin-only>
-        <button class="panel-btn" type="submit" data-admin-only>+ Add category</button>
-      </form>
+      <div class="panel-body">Alms giving, annual trip, event fund — the things members can be charged for besides membership fee. Membership Fee itself is managed separately below, since it's set per year.</div>
+      <select id="categories-list" size="6" style="width:100%;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12.5px;margin-bottom:10px;"></select>
+      <label style="margin-top:0;">Category Name</label>
+      <input type="text" id="cat-name-input" placeholder="e.g. Annual Trip" data-admin-only>
+      <label>Fixed Amount</label>
+      <input type="number" step="0.01" id="cat-amount-input" placeholder="blank = any amount" data-admin-only>
+      <div class="row-actions" style="margin-top:10px;">
+        <button class="panel-btn" id="cat-add-btn" type="button" data-admin-only>Add Payment Category</button>
+        <button class="panel-btn" id="cat-edit-btn" type="button" disabled data-admin-only>Edit Selected</button>
+        <button class="panel-btn" id="cat-delete-btn" type="button" style="background:#FF5D5D;" disabled data-admin-only>Delete Selected</button>
+      </div>
     </div>
 
     <div class="panel blue">
@@ -90,46 +92,82 @@
 <script src="js/service-worker-register.js"></script>
 <script>
 let currentProfile = null;
+let selectedCategoryName = null;
 
 async function refreshCategories() {
   const categories = await listCategories();
-  const table = document.getElementById("categories-table");
-  table.innerHTML =
-    `<tr><th>Category</th><th>Default Amount</th><th></th></tr>` +
-    categories
-      .map(
-        (c) => `
-      <tr>
-        <td>${c.name}</td>
-        <td>
-          <form class="cat-update-form row-actions" data-name="${c.name}" style="gap:6px;">
-            <input type="number" step="0.01" name="default_amount" value="${c.default_amount ?? ""}" placeholder="open amount" style="width:110px;" data-admin-only>
-            <button class="btn small" type="submit" data-admin-only>Save</button>
-          </form>
-        </td>
-        <td><button class="btn danger small" data-delete-cat="${c.name}" data-admin-only>Delete</button></td>
-      </tr>`
-      )
-      .join("");
+  const list = document.getElementById("categories-list");
+  const previousSelection = selectedCategoryName;
+  list.innerHTML = categories
+    .map(
+      (c) =>
+        `<option value="${c.name}">${c.name} — ${c.default_amount != null ? "Rs " + Number(c.default_amount).toFixed(2) : "(any amount)"}</option>`
+    )
+    .join("");
 
-  table.querySelectorAll(".cat-update-form").forEach((form) => {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const amt = new FormData(form).get("default_amount");
-      await addOrUpdateCategory(form.dataset.name, amt ? parseFloat(amt) : null);
-      flash(`Category '${form.dataset.name}' saved.`, "success");
-    });
-  });
-  table.querySelectorAll("[data-delete-cat]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      if (!confirm("Remove this category from the list?")) return;
-      await deleteCategory(btn.dataset.deleteCat);
-      await refreshCategories();
-      applyViewerRestrictions(currentProfile);
-    });
-  });
+  if (previousSelection && categories.some((c) => c.name === previousSelection)) {
+    list.value = previousSelection;
+  } else {
+    selectedCategoryName = null;
+    clearCategoryFields();
+  }
   applyViewerRestrictions(currentProfile);
 }
+
+function clearCategoryFields() {
+  document.getElementById("cat-name-input").value = "";
+  document.getElementById("cat-amount-input").value = "";
+  document.getElementById("categories-list").selectedIndex = -1;
+  document.getElementById("cat-edit-btn").disabled = true;
+  document.getElementById("cat-delete-btn").disabled = true;
+}
+
+document.getElementById("categories-list").addEventListener("change", async (e) => {
+  const name = e.target.value;
+  selectedCategoryName = name;
+  const categories = await listCategories();
+  const cat = categories.find((c) => c.name === name);
+  document.getElementById("cat-name-input").value = cat ? cat.name : "";
+  document.getElementById("cat-amount-input").value = cat && cat.default_amount != null ? cat.default_amount : "";
+  document.getElementById("cat-edit-btn").disabled = false;
+  document.getElementById("cat-delete-btn").disabled = false;
+});
+
+document.getElementById("cat-add-btn").addEventListener("click", async () => {
+  const name = document.getElementById("cat-name-input").value.trim();
+  const amountRaw = document.getElementById("cat-amount-input").value.trim();
+  if (!name) { flash("Enter a category name first.", "error"); return; }
+  if (name.toLowerCase() === "membership fee") { flash("Membership Fee is managed separately below.", "error"); return; }
+  await addOrUpdateCategory(name, amountRaw ? parseFloat(amountRaw) : null);
+  flash(`Category '${name}' added.`, "success");
+  selectedCategoryName = null;
+  clearCategoryFields();
+  await refreshCategories();
+});
+
+document.getElementById("cat-edit-btn").addEventListener("click", async () => {
+  if (!selectedCategoryName) return;
+  const name = document.getElementById("cat-name-input").value.trim();
+  const amountRaw = document.getElementById("cat-amount-input").value.trim();
+  if (!name) { flash("Category name can't be empty.", "error"); return; }
+  if (name !== selectedCategoryName) {
+    await deleteCategory(selectedCategoryName);
+  }
+  await addOrUpdateCategory(name, amountRaw ? parseFloat(amountRaw) : null);
+  flash(`Category '${name}' updated.`, "success");
+  selectedCategoryName = name;
+  await refreshCategories();
+});
+
+document.getElementById("cat-delete-btn").addEventListener("click", async () => {
+  if (!selectedCategoryName) return;
+  if (!confirm(`Delete category '${selectedCategoryName}'? Existing charges under this name are kept, but it won't be offered for new charges.`)) return;
+  await deleteCategory(selectedCategoryName);
+  flash(`Category '${selectedCategoryName}' deleted.`, "success");
+  selectedCategoryName = null;
+  clearCategoryFields();
+  await refreshCategories();
+});
 
 async function refreshLogins() {
   const { data, error } = await window.supabaseClient
@@ -162,18 +200,6 @@ document.getElementById("branding-form").addEventListener("submit", async (e) =>
   flash("Branding updated.", "success");
 });
 
-document.getElementById("add-category-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const name = document.getElementById("new-cat-name").value.trim();
-  const amt = document.getElementById("new-cat-amount").value.trim();
-  if (!name) return;
-  await addOrUpdateCategory(name, amt ? parseFloat(amt) : null);
-  document.getElementById("new-cat-name").value = "";
-  document.getElementById("new-cat-amount").value = "";
-  flash(`Category '${name}' saved.`, "success");
-  await refreshCategories();
-});
-
 document.getElementById("year-amount-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const year = parseInt(document.getElementById("ya-year").value, 10);
@@ -181,6 +207,7 @@ document.getElementById("year-amount-form").addEventListener("submit", async (e)
   if (!year || isNaN(amount)) return;
   await setCategoryYearAmount("Membership Fee", year, amount);
   flash(`Membership Fee amount for ${year} saved.`, "success");
+  document.getElementById("year-amount-form").reset();
 });
 
 document.getElementById("add-login-form").addEventListener("submit", async (e) => {

@@ -99,5 +99,7 @@ function flash(message, type = "success") {
   div.textContent = message;
   holder.innerHTML = "";
   holder.appendChild(div);
+  const header = document.querySelector("header.top");
+  holder.style.scrollMarginTop = header ? `${header.offsetHeight + 12}px` : "0px";
   holder.scrollIntoView({ behavior: "smooth", block: "start" });
 }

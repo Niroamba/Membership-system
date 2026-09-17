@@ -90,10 +90,12 @@ table.simple th{ text-transform:uppercase; font-size:11px; letter-spacing:.05em;
 .panel.amber{ background:#fff4e3; } .panel.amber .panel-title{ color:#1F2430; } .panel.amber .panel-body{ color:#7a5c1e; }
 .panel.pink{ background:#fdeaea; } .panel.pink .panel-title{ color:#1F2430; } .panel.pink .panel-body{ color:#8a3a3a; }
 .panel.purple{ background:#eeedfe; } .panel.purple .panel-title{ color:#1F2430; } .panel.purple .panel-body{ color:#4a3f8a; }
+.panel.teal{ background:#e0f5f3; } .panel.teal .panel-title{ color:#1F2430; } .panel.teal .panel-body{ color:#1e6b63; }
 .panel-btn{ border:none; font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:8px; cursor:pointer; color:#fff; text-decoration:none; display:inline-block; }
 .panel.green .panel-btn{ background:#2BAE66; }
 .panel.blue .panel-btn{ background:#2952E3; }
 .panel.amber .panel-btn{ background:#FFB627; color:#3d2900; }
 .panel.pink .panel-btn{ background:#FF5D5D; }
 .panel.purple .panel-btn{ background:#7C6FE0; }
+.panel.teal .panel-btn{ background:#1e9e8f; }
 .panel input, .panel select{ background:#fff; }
