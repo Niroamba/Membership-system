@@ -13,10 +13,6 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function money(n) {
-  return Number(n || 0).toFixed(2);
-}
-
 function headingRow(cells) {
   const { TableRow, TableCell, Paragraph, TextRun } = docx;
   return new TableRow({
@@ -114,10 +110,11 @@ async function exportMemberStatement(societyName, member, charges) {
   await saveDoc(doc, `${member.member_code}_Statement.docx`);
 }
 
-async function exportCategoryReport(societyName, category, year, rows) {
+async function exportCategoryReport(societyName, category, year, rows, statusLabel) {
   const { Document, Paragraph, HeadingLevel, Table } = docx;
   const totalCharged = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0);
   const totalPaid = rows.reduce((s, r) => s + Number(r.paid || 0), 0);
+  const suffix = statusLabel && statusLabel !== "Total" ? ` (${statusLabel})` : "";
 
   const tableRows = [headingRow(["Member ID", "Name", "Total", "Paid", "Balance", "Status", "Last Payment"])];
   rows.forEach((r) => {
@@ -139,7 +136,7 @@ async function exportCategoryReport(societyName, category, year, rows) {
       {
         children: [
           new Paragraph({ text: societyName, heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ text: `${category}${year ? " " + year : ""} — Payment Report`, heading: HeadingLevel.HEADING_2 }),
+          new Paragraph({ text: `${category}${year ? " " + year : ""} — Payment Report${suffix}`, heading: HeadingLevel.HEADING_2 }),
           new Paragraph(`Generated on ${new Date().toISOString().slice(0, 10)}`),
           new Paragraph(
             `Members: ${rows.length}   Total Charged: ${money(totalCharged)}   Total Collected: ${money(totalPaid)}   Outstanding: ${money(totalCharged - totalPaid)}`
@@ -150,7 +147,8 @@ async function exportCategoryReport(societyName, category, year, rows) {
       },
     ],
   });
-  await saveDoc(doc, `${category.replace(/\s+/g, "_")}${year ? "_" + year : ""}_Report.docx`);
+  const statusFile = statusLabel && statusLabel !== "Total" ? `_${statusLabel.replace(/\s+/g, "")}` : "";
+  await saveDoc(doc, `${category.replace(/\s+/g, "_")}${year ? "_" + year : ""}${statusFile}_Report.docx`);
 }
 
 async function exportRemovedMembersReport(societyName, rows) {

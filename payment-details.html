@@ -8,6 +8,11 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .status-tabs{ display:flex; gap:6px; margin-top:12px; }
+  .status-tab{ border:none; background:#fff; color:#2952E3; font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:8px; cursor:pointer; border:1.5px solid #2952E3; }
+  .status-tab.active{ background:#2952E3; color:#fff; }
+</style>
 </head>
 <body>
 <header class="top" id="app-header"></header>
@@ -22,11 +27,15 @@
       </div>
     </div>
     <div class="bold-wrap-body">
-      <form id="filter-form" class="row-actions" style="align-items:end;margin:0;">
+      <div class="row-actions" style="margin:0;align-items:end;">
         <div><label style="margin-top:0;">Category</label><select id="f-category"></select></div>
         <div><label style="margin-top:0;">Year</label><select id="f-year"><option value="">All years</option></select></div>
-        <button class="btn small" type="submit">Filter</button>
-      </form>
+      </div>
+      <div class="status-tabs">
+        <button class="status-tab active" data-status="all">All</button>
+        <button class="status-tab" data-status="paid">Fully Paid</button>
+        <button class="status-tab" data-status="outstanding">Outstanding</button>
+      </div>
     </div>
   </div>
 
@@ -42,9 +51,16 @@
 <script src="js/reports.js"></script>
 <script src="js/service-worker-register.js"></script>
 <script>
-let currentRows = [];
+let allRows = [];
 let currentCategory = "";
 let currentYear = "";
+let currentStatus = "all";
+
+function filteredRows() {
+  if (currentStatus === "paid") return allRows.filter((r) => r.balance <= 0);
+  if (currentStatus === "outstanding") return allRows.filter((r) => r.balance > 0);
+  return allRows;
+}
 
 async function refreshYears() {
   const years = await listYearsForCategory(currentCategory);
@@ -55,16 +71,21 @@ async function refreshYears() {
 }
 
 async function refreshRows() {
-  currentRows = currentCategory ? await getChargesByCategory(currentCategory, currentYear ? parseInt(currentYear, 10) : null) : [];
+  allRows = currentCategory ? await getChargesByCategory(currentCategory, currentYear ? parseInt(currentYear, 10) : null) : [];
+  renderRows();
+}
+
+function renderRows() {
+  const rows = filteredRows();
   const holder = document.getElementById("rows-holder");
-  if (currentRows.length === 0) {
-    holder.innerHTML = `<div class="empty">No charges recorded for this category${currentYear ? " in " + currentYear : ""}.</div>`;
+  if (rows.length === 0) {
+    holder.innerHTML = `<div class="empty">No charges match this filter${currentYear ? " for " + currentYear : ""}.</div>`;
     return;
   }
   holder.innerHTML = `
     <table class="simple">
     <tr><th>ID</th><th>Name</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th><th>Last Payment</th></tr>
-    ${currentRows
+    ${rows
       .map(
         (r) => `
       <tr>
@@ -81,13 +102,6 @@ async function refreshRows() {
     </table>`;
 }
 
-document.getElementById("filter-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  currentCategory = document.getElementById("f-category").value;
-  currentYear = document.getElementById("f-year").value;
-  await refreshRows();
-});
-
 document.getElementById("f-category").addEventListener("change", async () => {
   currentCategory = document.getElementById("f-category").value;
   currentYear = "";
@@ -95,10 +109,24 @@ document.getElementById("f-category").addEventListener("change", async () => {
   await refreshRows();
 });
 
+document.getElementById("f-year").addEventListener("change", async () => {
+  currentYear = document.getElementById("f-year").value;
+  await refreshRows();
+});
+
+document.querySelectorAll(".status-tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    currentStatus = btn.dataset.status;
+    document.querySelectorAll(".status-tab").forEach((b) => b.classList.toggle("active", b === btn));
+    renderRows();
+  });
+});
+
 document.getElementById("export-btn").addEventListener("click", async () => {
   if (!currentCategory) { flash("Choose a category first.", "error"); return; }
   const societyName = await getSocietyName();
-  await exportCategoryReport(societyName, currentCategory, currentYear ? parseInt(currentYear, 10) : null, currentRows);
+  const label = currentStatus === "paid" ? "Fully Paid" : currentStatus === "outstanding" ? "Outstanding" : "Total";
+  await exportCategoryReport(societyName, currentCategory, currentYear ? parseInt(currentYear, 10) : null, filteredRows(), label);
 });
 
 async function load() {

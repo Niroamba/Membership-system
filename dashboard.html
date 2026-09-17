@@ -14,11 +14,6 @@
 <div class="wrap">
   <div id="flash-holder"></div>
 
-  <div id="news-section" style="display:none;">
-    <h2 class="section">Announcements</h2>
-    <div class="card" id="news-holder"></div>
-  </div>
-
   <h2 class="section">Overview</h2>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
     <div style="background:#2952E3;border-radius:12px;padding:14px;">
@@ -57,22 +52,6 @@ async function load() {
   if (!profile) return;
   await renderHeader("dashboard", profile);
   applyViewerRestrictions(profile);
-
-  const news = await getAllNews();
-  if (news.length) {
-    document.getElementById("news-section").style.display = "";
-    document.getElementById("news-holder").innerHTML = news
-      .slice(0, 3)
-      .map(
-        (n) => `
-      <div style="border-left:3px solid #a9812f;padding:6px 12px;margin-bottom:10px;">
-        <div style="font-family:Georgia,serif;font-size:15px;">${n.title}</div>
-        <div class="muted" style="font-size:11px;">${new Date(n.posted_on).toLocaleDateString()}</div>
-        <div style="font-size:13px;white-space:pre-wrap;">${n.content}</div>
-      </div>`
-      )
-      .join("");
-  }
 
   const members = await getAllMembersWithTotals();
   const totals = summarizeTotals(members);

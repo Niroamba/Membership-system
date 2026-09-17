@@ -3,6 +3,10 @@
 
 const sb = () => window.supabaseClient;
 
+function money(n) {
+  return Number(n || 0).toFixed(2);
+}
+
 function withPaidBalance(charge) {
   const paid = (charge.payments || []).reduce((s, p) => s + Number(p.amount), 0);
   return { ...charge, paid, balance: Number(charge.total_amount) - paid };
