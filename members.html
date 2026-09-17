@@ -42,6 +42,8 @@
       <button class="am-btn ghost" id="edit-btn" disabled data-admin-only>Edit selected</button>
       <button class="am-btn ghost" id="delete-btn" disabled data-admin-only>Delete selected</button>
       <button class="am-btn ghost" id="view-payments-btn" disabled>View payments</button>
+      <button class="am-btn ghost" id="export-statement-btn" disabled>Export statement</button>
+      <button class="am-btn ghost" id="portal-login-btn" disabled data-admin-only>Portal login</button>
       <button class="am-btn gold" id="export-btn">Export to Word</button>
       <button class="am-btn ghost" id="refresh-btn">Refresh</button>
     </div>
@@ -59,6 +61,12 @@
     <input type="text" id="delete-reason-input" placeholder="Reason for removal" style="max-width:240px;display:inline-block;">
     <button class="am-btn" style="background:#FF5D5D;color:#fff;" id="confirm-delete-btn">Confirm delete</button>
     <button class="am-btn ghost" style="background:#00000015;color:#4a1b0c;" id="cancel-delete-btn">Cancel</button>
+  </div>
+
+  <div id="portal-panel" style="display:none;background:#eaf2fb;padding:12px 20px;gap:8px;align-items:center;flex-wrap:wrap;">
+    <span id="portal-status-text" class="muted" style="margin-right:8px;">Checking…</span>
+    <button class="am-btn" style="background:#2952E3;color:#fff;" id="portal-action-btn">Create portal login</button>
+    <button class="am-btn ghost" style="background:#00000015;color:#1a2f5c;" id="portal-close-btn">Close</button>
   </div>
 
   <div class="am-wrap">
@@ -127,7 +135,10 @@ function selectRow(id) {
   document.getElementById("edit-btn").disabled = !has;
   document.getElementById("delete-btn").disabled = !has;
   document.getElementById("view-payments-btn").disabled = !has;
+  document.getElementById("export-statement-btn").disabled = !has;
+  document.getElementById("portal-login-btn").disabled = !has;
   document.getElementById("delete-reason-bar").style.display = "none";
+  document.getElementById("portal-panel").style.display = "none";
 }
 
 async function loadFeeYear() {
@@ -152,6 +163,57 @@ document.getElementById("edit-btn").addEventListener("click", () => {
 
 document.getElementById("view-payments-btn").addEventListener("click", () => {
   if (selectedId) window.location.href = `member-detail.html?id=${selectedId}`;
+});
+
+document.getElementById("export-statement-btn").addEventListener("click", async () => {
+  if (!selectedId) return;
+  const member = allMembers.find((m) => String(m.id) === String(selectedId));
+  const [societyName, charges] = await Promise.all([getSocietyName(), getChargesForMember(selectedId)]);
+  await exportMemberStatement(societyName, member, charges);
+});
+
+document.getElementById("portal-login-btn").addEventListener("click", async () => {
+  if (!selectedId) return;
+  document.getElementById("portal-panel").style.display = "flex";
+  document.getElementById("delete-reason-bar").style.display = "none";
+  await refreshPortalStatus();
+});
+
+document.getElementById("portal-close-btn").addEventListener("click", () => {
+  document.getElementById("portal-panel").style.display = "none";
+});
+
+async function refreshPortalStatus() {
+  const member = allMembers.find((m) => String(m.id) === String(selectedId));
+  const { data } = await window.supabaseClient
+    .from("profiles")
+    .select("username")
+    .eq("member_id", selectedId)
+    .eq("role", "member")
+    .maybeSingle();
+  const statusText = document.getElementById("portal-status-text");
+  const actionBtn = document.getElementById("portal-action-btn");
+  if (data) {
+    statusText.textContent = `${member.name} already has a portal login (${data.username || memberPortalEmail(member.member_code)}).`;
+    actionBtn.textContent = "Reset password";
+  } else {
+    statusText.textContent = `${member.name} has no portal login yet.`;
+    actionBtn.textContent = "Create portal login";
+  }
+}
+
+document.getElementById("portal-action-btn").addEventListener("click", async () => {
+  const member = allMembers.find((m) => String(m.id) === String(selectedId));
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke("member-account", {
+      body: { member_id: member.id, member_code: member.member_code },
+    });
+    if (error) throw error;
+    flash(`Portal login ready — email: ${data.email} · password: ${data.password} (shown once — share it with the member now).`, "success");
+    document.getElementById("portal-panel").style.display = "none";
+  } catch (err) {
+    flash("Couldn't reach the 'member-account' Edge Function. Deploy it first (README Phase 2). Details: " + err.message, "error");
+  }
 });
 
 document.getElementById("delete-btn").addEventListener("click", () => {

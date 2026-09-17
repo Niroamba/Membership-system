@@ -66,6 +66,12 @@ table.simple th{ text-transform:uppercase; font-size:11px; letter-spacing:.05em;
 
 .center-card{ max-width:400px; margin:60px auto; }
 
+.toast-stack{ position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:500; display:flex; flex-direction:column; gap:8px; align-items:center; width:calc(100% - 32px); max-width:420px; pointer-events:none; }
+.toast{ background:var(--ink); color:#fff; padding:12px 18px; border-radius:10px; font-size:13.5px; box-shadow:0 6px 18px rgba(0,0,0,.18); opacity:0; transform:translateY(-10px); transition:opacity .25s ease, transform .25s ease; pointer-events:auto; text-align:center; }
+.toast.show{ opacity:1; transform:translateY(0); }
+.toast.success{ background:var(--paid); }
+.toast.error{ background:var(--unpaid); }
+
 /* Bold toolbar header, shared by All Members, Payment Details, Messaging,
    Announcements, and Removed pages */
 .bold-toolbar{ background:#2952E3; padding:16px 20px; border-radius:16px 16px 0 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }

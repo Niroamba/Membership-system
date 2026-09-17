@@ -89,17 +89,22 @@ function adjustFontScale(delta) {
 })();
 
 function flash(message, type = "success") {
-  const holder = document.getElementById("flash-holder");
-  if (!holder) {
-    alert(message);
-    return;
+  let stack = document.querySelector(".toast-stack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.className = "toast-stack";
+    document.body.appendChild(stack);
   }
-  const div = document.createElement("div");
-  div.className = `flash ${type}`;
-  div.textContent = message;
-  holder.innerHTML = "";
-  holder.appendChild(div);
-  const header = document.querySelector("header.top");
-  holder.style.scrollMarginTop = header ? `${header.offsetHeight + 12}px` : "0px";
-  holder.scrollIntoView({ behavior: "smooth", block: "start" });
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  stack.appendChild(toast);
+
+  requestAnimationFrame(() => toast.classList.add("show"));
+
+  const duration = type === "error" ? 6000 : 3500;
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 250);
+  }, duration);
 }

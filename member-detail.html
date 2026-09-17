@@ -39,28 +39,11 @@
     </div>
   </div>
 
-  <!-- View section (only when editing an existing member) -->
+  <!-- Payments view (reached via "View Payments" on the Members page) -->
   <div id="view-section" style="display:none;">
-    <h2 class="section" id="view-name"></h2>
-    <div class="card">
-      <div class="muted" id="view-meta"></div>
-      <div class="row-actions">
-        <button class="btn secondary" id="edit-toggle" data-admin-only>Edit</button>
-        <button class="btn secondary" id="export-statement">Export Statement (Word)</button>
-      </div>
-      <form id="delete-form" class="row-actions" style="margin-top:14px;">
-        <input type="text" id="delete-reason" placeholder="Reason for removal" required style="max-width:220px;" data-admin-only>
-        <button class="btn danger small" type="submit" data-admin-only>Remove Member</button>
-      </form>
-    </div>
-
-    <div class="card">
-      <div style="font-family:Georgia,serif;font-size:15px;margin-bottom:8px;">Member Portal Login</div>
-      <div id="portal-status" class="muted">Checking…</div>
-      <form id="portal-form" class="row-actions">
-        <button class="btn small" type="submit" id="portal-btn" data-admin-only>Create Portal Login</button>
-      </form>
-      <p class="muted" style="font-size:11.5px;margin-top:8px;">Requires the optional "member-account" Edge Function — see README Phase 2. Until then this will show a setup message.</p>
+    <div class="card" style="padding:14px 18px;">
+      <div style="font-family:Georgia,serif;font-size:18px;" id="view-name"></div>
+      <div class="muted" id="view-meta" style="font-size:12.5px;"></div>
     </div>
 
     <div class="card">
@@ -126,15 +109,31 @@ async function populateCategoryAndYearSelects() {
   yearSelect.innerHTML = years.map((y) => `<option value="${y}" ${y === current ? "selected" : ""}>${y}</option>`).join("");
 }
 
+let expandedChargeIds = null;
+let currentCharges = [];
+
 async function renderCharges() {
-  const charges = await getChargesForMember(member.id);
+  currentCharges = await getChargesForMember(member.id);
+  if (expandedChargeIds === null) {
+    expandedChargeIds = new Set(currentCharges.filter((c) => c.balance > 0).map((c) => c.id));
+  }
+  renderChargesList();
+}
+
+function renderChargesList() {
   const holder = document.getElementById("charges-holder");
-  if (charges.length === 0) {
+  if (currentCharges.length === 0) {
     holder.innerHTML = `<div class="empty">No payments recorded for this member yet.</div>`;
     return;
   }
-  holder.innerHTML = charges
+  holder.innerHTML = currentCharges
     .map((c) => {
+      const isOpen = expandedChargeIds.has(c.id);
+      const accent = c.balance <= 0 ? "#2BAE66" : "#FF5D5D";
+      const badge =
+        c.balance <= 0
+          ? `<span class="badge paid">Paid</span>`
+          : `<span class="badge unpaid">${money(c.balance)} due</span>`;
       const paymentsRows = (c.payments || [])
         .map(
           (p) => `
@@ -147,32 +146,55 @@ async function renderCharges() {
         )
         .join("");
       return `
-      <div class="card" data-charge-card="${c.id}">
-        <div style="font-family:Georgia,serif;font-size:16px;">${c.description} ${c.year ? `(${c.year})` : ""}</div>
-        <div class="muted" style="margin-bottom:8px;">
-          Total ${money(c.total_amount)} · Paid ${money(c.paid)} · Balance ${money(c.balance)}
-          ${c.balance <= 0 ? `<span class="badge paid">Fully Paid</span>` : `<span class="badge unpaid">Outstanding</span>`}
+      <div class="card" data-charge-card="${c.id}" style="border-left:5px solid ${accent};padding:0;overflow:hidden;">
+        <div class="charge-toggle" data-toggle-charge="${c.id}" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+          <div>
+            <div style="font-family:Georgia,serif;font-size:16px;">${c.description} <span class="muted" style="font-size:13px;">${c.year ? `(${c.year})` : ""}</span></div>
+            <div class="muted" style="font-size:12.5px;">Total ${money(c.total_amount)} · Paid ${money(c.paid)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            ${badge}
+            <span class="muted" style="font-size:13px;">${isOpen ? "▾" : "▸"}</span>
+          </div>
         </div>
-        ${
-          c.payments.length
-            ? `<table class="simple"><tr><th>Installment</th><th>Amount</th><th>Date</th><th></th></tr>${paymentsRows}</table>`
-            : `<div class="muted">No payments yet.</div>`
-        }
-        <form class="payment-form row-actions" data-charge-id="${c.id}" style="margin-top:10px;align-items:end;">
-          <div><label style="margin-top:0;">Amount</label><input type="number" step="0.01" name="amount" required style="width:120px;" data-admin-only></div>
-          <div><label style="margin-top:0;">Date</label><input type="date" name="paid_date" value="${new Date().toISOString().slice(0,10)}" data-admin-only></div>
-          <div><label style="margin-top:0;">Receipt Book #</label><input type="text" name="receipt_book_no" style="width:100px;" data-admin-only></div>
-          <div><label style="margin-top:0;">Receipt #</label><input type="text" name="receipt_no" style="width:100px;" data-admin-only></div>
-          <button class="btn small" type="submit" data-admin-only>Add Payment</button>
-        </form>
-        <button class="btn danger small" data-delete-charge="${c.id}" style="margin-top:6px;" data-admin-only>Delete Charge</button>
+        ${isOpen ? `
+        <div style="padding:0 16px 16px;border-top:1px solid #f0ece0;">
+          ${
+            c.payments.length
+              ? `<table class="simple" style="margin-top:8px;"><tr><th>Installment</th><th>Amount</th><th>Date</th><th></th></tr>${paymentsRows}</table>`
+              : `<div class="muted" style="margin-top:8px;">No payments yet.</div>`
+          }
+          <form class="payment-form row-actions" data-charge-id="${c.id}" style="margin-top:10px;align-items:end;">
+            <div><label style="margin-top:0;">Amount</label><input type="number" step="0.01" name="amount" required style="width:120px;" data-admin-only></div>
+            <div><label style="margin-top:0;">Date</label><input type="date" name="paid_date" value="${new Date().toISOString().slice(0,10)}" data-admin-only></div>
+            <div><label style="margin-top:0;">Receipt Book #</label><input type="text" name="receipt_book_no" style="width:100px;" data-admin-only></div>
+            <div><label style="margin-top:0;">Receipt #</label><input type="text" name="receipt_no" style="width:100px;" data-admin-only></div>
+            <button class="btn small" type="submit" data-admin-only>Add Payment</button>
+          </form>
+          <button class="btn danger small" data-delete-charge="${c.id}" style="margin-top:6px;" data-admin-only>Delete Charge</button>
+        </div>` : ""}
       </div>`;
     })
     .join("");
 
+  holder.querySelectorAll("[data-toggle-charge]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const id = row.dataset.toggleCharge;
+      const numericId = currentCharges.find((c) => String(c.id) === String(id))?.id ?? id;
+      if (expandedChargeIds.has(numericId)) {
+        expandedChargeIds.delete(numericId);
+      } else {
+        expandedChargeIds.add(numericId);
+      }
+      renderChargesList();
+    });
+  });
+
   holder.querySelectorAll(".payment-form").forEach((form) => {
+    form.addEventListener("click", (e) => e.stopPropagation());
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      e.stopPropagation();
       const chargeId = form.dataset.chargeId;
       const fd = new FormData(form);
       try {
@@ -186,7 +208,8 @@ async function renderCharges() {
   });
 
   holder.querySelectorAll("[data-delete-payment]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       if (!confirm("Delete this payment?")) return;
       await deletePayment(btn.dataset.deletePayment);
       await renderCharges();
@@ -203,46 +226,6 @@ async function renderCharges() {
 
   applyViewerRestrictions(profile);
 }
-
-async function loadPortalStatus() {
-  const { data } = await window.supabaseClient
-    .from("profiles")
-    .select("username, id")
-    .eq("member_id", member.id)
-    .eq("role", "member")
-    .maybeSingle();
-  const statusEl = document.getElementById("portal-status");
-  const btn = document.getElementById("portal-btn");
-  if (data) {
-    statusEl.textContent = `This member already has a portal login (${data.username || memberPortalEmail(member.member_code)}).`;
-    btn.textContent = "Reset Password";
-  } else {
-    statusEl.textContent = "No portal login yet for this member.";
-    btn.textContent = "Create Portal Login";
-  }
-}
-
-document.getElementById("portal-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    const { data, error } = await window.supabaseClient.functions.invoke("member-account", {
-      body: { member_id: member.id, member_code: member.member_code },
-    });
-    if (error) throw error;
-    flash(
-      `Portal login ready — email: ${data.email} · password: ${data.password} ` +
-        `(shown once — share it with the member now, e.g. via WhatsApp or in person).`,
-      "success"
-    );
-    await loadPortalStatus();
-  } catch (err) {
-    flash(
-      "Couldn't reach the 'member-account' Edge Function. Deploy it first (README Phase 2) — " +
-        "everything else in the system works without it. Details: " + err.message,
-      "error"
-    );
-  }
-});
 
 document.getElementById("member-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -266,18 +249,6 @@ document.getElementById("member-form").addEventListener("submit", async (e) => {
   }
 });
 
-document.getElementById("delete-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!confirm("Remove this member? This deletes their live payment history (kept in Removed Members).")) return;
-  const reason = document.getElementById("delete-reason").value.trim();
-  try {
-    await deleteMemberAndArchive(member, reason, profile.username || profile.role);
-    window.location.href = "members.html";
-  } catch (err) {
-    flash(err.message, "error");
-  }
-});
-
 document.getElementById("charge-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const description = document.getElementById("c-description").value;
@@ -298,17 +269,6 @@ document.getElementById("charge-form").addEventListener("submit", async (e) => {
   }
 });
 
-document.getElementById("export-statement").addEventListener("click", async () => {
-  const [societyName, charges] = await Promise.all([getSocietyName(), getChargesForMember(member.id)]);
-  await exportMemberStatement(societyName, member, charges);
-});
-
-document.getElementById("edit-toggle").addEventListener("click", () => {
-  document.getElementById("view-section").style.display = "none";
-  document.getElementById("form-section").style.display = "";
-  document.getElementById("cancel-link").href = `member-detail.html?id=${member.id}`;
-});
-
 async function load() {
   profile = await requireAuth("admin_or_viewer");
   if (!profile) return;
@@ -320,22 +280,25 @@ async function load() {
 
   if (memberId) {
     member = await getMember(memberId);
-    document.getElementById("form-section").style.display = "none";
-    document.getElementById("view-section").style.display = "";
-    document.getElementById("view-name").textContent = member.name;
+    const wantsEdit = params.get("edit") === "1" && profile.role === "admin";
+
+    document.getElementById("form-section").style.display = wantsEdit ? "" : "none";
+    document.getElementById("view-section").style.display = wantsEdit ? "none" : "";
+    document.getElementById("cancel-link").href = `member-detail.html?id=${member.id}`;
+
+    if (wantsEdit) {
+      document.getElementById("form-title").textContent = "Edit Member";
+      fillForm(member);
+      return;
+    }
+
+    document.getElementById("view-name").textContent = `${member.name} (${member.member_code})`;
     document.getElementById("view-meta").innerHTML = `
-      ${member.member_code}${member.phone_number ? " · " + member.phone_number : ""}<br>
-      ${member.address || ""}<br>
-      ${member.remarks ? "Remarks: " + member.remarks : ""}<br>
-      ${member.joined_date ? "Joined: " + member.joined_date : ""}
+      ${member.phone_number || ""}${member.address ? " · " + member.address : ""}
+      ${member.remarks ? "<br>Remarks: " + member.remarks : ""}
     `;
-    fillForm(member);
     await populateCategoryAndYearSelects();
     await renderCharges();
-    await loadPortalStatus();
-    if (params.get("edit") === "1" && profile.role === "admin") {
-      document.getElementById("edit-toggle").click();
-    }
   } else {
     document.getElementById("form-title").textContent = "Add Member";
   }
