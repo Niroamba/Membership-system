@@ -90,7 +90,7 @@ document.getElementById("signin-form").addEventListener("submit", async (e) => {
     const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
     if (!error) {
       const profile = await getMyProfile();
-      window.location.href = profile && profile.role === "admin" ? "dashboard.html" : profile && profile.role === "viewer" ? "dashboard.html" : "my-payments.html";
+      window.location.href = profile && profile.role === "admin" ? "dashboard.html" : profile && profile.role === "viewer" ? "dashboard.html" : "member-dashboard.html";
       return;
     }
     lastError = error;
@@ -127,7 +127,7 @@ document.getElementById("forgot-form").addEventListener("submit", async (e) => {
   const session = await getSession();
   if (session) {
     const profile = await getMyProfile();
-    if (profile) window.location.href = profile.role === "admin" ? "dashboard.html" : "my-payments.html";
+    if (profile) window.location.href = profile.role === "admin" || profile.role === "viewer" ? "dashboard.html" : "member-dashboard.html";
   }
 })();
 </script>

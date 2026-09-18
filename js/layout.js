@@ -14,6 +14,13 @@ const ADMIN_NAV = [
   ["settings.html", "settings", "Settings"],
 ];
 
+const MEMBER_NAV = [
+  ["member-dashboard.html", "member-dashboard", "Dashboard"],
+  ["member-profile.html", "member-profile", "My Profile"],
+  ["my-payments.html", "my-payments", "My Payments"],
+  ["news.html", "news", "Announcements"],
+];
+
 async function renderHeader(activeKey, profile) {
   const sidebarEl = document.getElementById("app-header");
   const contentEl = document.querySelector(".wrap");
@@ -33,9 +40,9 @@ async function renderHeader(activeKey, profile) {
   sidebarEl.className = "app-sidebar";
 
   const isStaff = profile.role === "admin" || profile.role === "viewer";
-  const navHtml = isStaff
-    ? ADMIN_NAV.map(([href, key, label]) => `<a href="${href}" class="${key === activeKey ? "active" : ""}">${label}</a>`).join("")
-    : `<a href="my-payments.html" class="active">My Payments</a>`;
+  const navHtml = (isStaff ? ADMIN_NAV : MEMBER_NAV)
+    .map(([href, key, label]) => `<a href="${href}" class="${key === activeKey ? "active" : ""}">${label}</a>`)
+    .join("");
 
   sidebarEl.innerHTML = `
     <div class="sidebar-brand">${logoUrl ? `<img src="${logoUrl}" alt="">` : "🌿"} <span>${societyName}</span></div>
@@ -52,11 +59,11 @@ async function renderHeader(activeKey, profile) {
     topbar.id = "app-topbar";
     contentEl.insertBefore(topbar, contentEl.firstChild);
   }
-  const staffTools = isStaff
-    ? `<button class="btn small secondary" id="backup-now-btn">Backup now</button>
-       <button class="btn small secondary" id="font-smaller-btn" aria-label="Smaller text">A-</button>
-       <button class="btn small secondary" id="font-larger-btn" aria-label="Larger text">A+</button>`
-    : "";
+  const staffTools = `
+    ${isStaff ? `<button class="btn small secondary" id="backup-now-btn">Backup now</button>` : ""}
+    <button class="btn small secondary" id="font-smaller-btn" aria-label="Smaller text">A-</button>
+    <button class="btn small secondary" id="font-larger-btn" aria-label="Larger text">A+</button>
+  `;
   topbar.innerHTML = `
     <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu">☰</button>
     <div class="topbar-title">${document.title}</div>
@@ -92,10 +99,10 @@ async function renderHeader(activeKey, profile) {
       btn.disabled = false;
       btn.textContent = "Backup now";
     });
-    applyFontScale();
-    document.getElementById("font-smaller-btn").addEventListener("click", () => adjustFontScale(-0.1));
-    document.getElementById("font-larger-btn").addEventListener("click", () => adjustFontScale(0.1));
   }
+  applyFontScale();
+  document.getElementById("font-smaller-btn").addEventListener("click", () => adjustFontScale(-0.1));
+  document.getElementById("font-larger-btn").addEventListener("click", () => adjustFontScale(0.1));
 }
 
 const FONT_SCALE_MIN = 0.85;

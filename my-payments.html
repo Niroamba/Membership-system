@@ -14,20 +14,11 @@
 <div class="wrap">
   <div id="flash-holder"></div>
   <h2 class="section">My Payments</h2>
-  <div class="card">
-    <div id="profile-holder">Loading…</div>
-    <div class="row-actions">
-      <button class="btn secondary" id="export-btn">Download My Statement (Word)</button>
-    </div>
+  <div class="row-actions" style="margin:0 0 16px;">
+    <button class="btn secondary" id="export-btn">Download My Statement (Word)</button>
   </div>
 
-  <h2 class="section">Payment History</h2>
   <div id="charges-holder"><div class="empty">Loading…</div></div>
-
-  <div id="news-section" style="display:none;">
-    <h2 class="section">Announcements</h2>
-    <div class="card" id="news-holder"></div>
-  </div>
 </div>
 
 <script src="config.js"></script>
@@ -47,16 +38,11 @@ async function load() {
   await renderHeader("my-payments", profile);
 
   if (!profile.member_id) {
-    document.getElementById("profile-holder").innerHTML = `<div class="empty">Your account isn't linked to a member record yet — ask an admin to connect it.</div>`;
+    document.getElementById("charges-holder").innerHTML = `<div class="empty">Your account isn't linked to a member record yet — ask an admin to connect it.</div>`;
     return;
   }
   member = await getMember(profile.member_id);
-  document.getElementById("profile-holder").innerHTML = `
-    <div style="font-family:Georgia,serif;font-size:19px;">${member.name}</div>
-    <div class="muted">${member.member_code}${member.phone_number ? " · " + member.phone_number : ""}</div>
-    ${member.address ? `<div class="muted">${member.address}</div>` : ""}
-    ${member.joined_date ? `<div class="muted">Joined: ${member.joined_date}</div>` : ""}
-  `;
+  document.title = `${member.name} — My Payments`;
 
   const charges = await getChargesForMember(member.id);
   const holder = document.getElementById("charges-holder");
@@ -105,21 +91,6 @@ async function load() {
       });
     };
     renderList();
-  }
-
-  const news = await getAllNews();
-  if (news.length) {
-    document.getElementById("news-section").style.display = "";
-    document.getElementById("news-holder").innerHTML = news
-      .map(
-        (n) => `
-      <div style="border-left:3px solid #a9812f;padding:6px 12px;margin-bottom:10px;">
-        <div style="font-family:Georgia,serif;font-size:15px;">${n.title}</div>
-        <div class="muted" style="font-size:11px;">${new Date(n.posted_on).toLocaleDateString()}</div>
-        <div style="font-size:13px;white-space:pre-wrap;">${n.content}</div>
-      </div>`
-      )
-      .join("");
   }
 
   document.getElementById("export-btn").addEventListener("click", async () => {

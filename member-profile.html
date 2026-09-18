@@ -60,24 +60,29 @@ function initials(name) {
 }
 
 async function load() {
-  const profile = await requireAuth("admin_or_viewer");
+  const profile = await requireAuth();
   if (!profile) return;
-  await renderHeader("members", profile);
+  const isStaff = profile.role === "admin" || profile.role === "viewer";
+  const backTarget = isStaff ? "members.html" : "member-dashboard.html";
+  await renderHeader(isStaff ? "members" : "member-profile", profile);
   applyViewerRestrictions(profile);
 
-  if (!memberId) {
-    window.location.href = "members.html";
+  const targetId = isStaff ? memberId : profile.member_id;
+  if (!targetId) {
+    window.location.href = backTarget;
     return;
   }
-  const member = await getMember(memberId);
+  const member = await getMember(targetId);
   if (!member) {
-    window.location.href = "members.html";
+    window.location.href = backTarget;
     return;
   }
+  document.getElementById("back-link").href = backTarget;
+  document.getElementById("back-link").textContent = isStaff ? "Back to Members" : "Back to Dashboard";
 
   document.title = `${member.name} — Profile`;
   document.getElementById("edit-link").href = `member-detail.html?id=${member.id}&edit=1`;
-  document.getElementById("view-payments-link").href = `member-detail.html?id=${member.id}`;
+  document.getElementById("view-payments-link").href = isStaff ? `member-detail.html?id=${member.id}` : "my-payments.html";
 
   document.getElementById("identity-block").innerHTML = `
     <div class="avatar-circle">${initials(member.name)}</div>

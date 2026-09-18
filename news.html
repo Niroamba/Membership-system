@@ -33,7 +33,7 @@
 <script src="js/service-worker-register.js"></script>
 <script>
 async function load() {
-  const profile = await requireAuth("admin_or_viewer");
+  const profile = await requireAuth();
   if (!profile) return;
   await renderHeader("news", profile);
   applyViewerRestrictions(profile);

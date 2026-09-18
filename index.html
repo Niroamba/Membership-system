@@ -12,7 +12,7 @@
   const session = await getSession();
   if (!session) { window.location.href = "login.html"; return; }
   const profile = await getMyProfile();
-  window.location.href = profile && profile.role === "admin" ? "dashboard.html" : "my-payments.html";
+  window.location.href = profile && profile.role === "admin" ? "dashboard.html" : profile && profile.role === "viewer" ? "dashboard.html" : "member-dashboard.html";
 })();
 </script>
 </head>

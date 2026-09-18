@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Dashboard</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .md-tiles{ display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:16px; }
+  @media (max-width:560px){ .md-tiles{ grid-template-columns:1fr 1fr; } }
+  .md-tile{ border-radius:12px; padding:18px 14px; text-align:center; text-decoration:none; color:#fff; font-weight:600; font-size:13px; }
+  .md-tile .icon{ font-size:22px; display:block; margin-bottom:6px; }
+</style>
+</head>
+<body>
+<header class="top" id="app-header"></header>
+<div class="wrap">
+  <div id="flash-holder"></div>
+
+  <div class="bold-wrap">
+    <div class="bold-toolbar" style="background:#2BAE66;">
+      <h2 id="welcome-heading">Welcome!</h2>
+    </div>
+    <div class="bold-wrap-body">
+      <div id="status-row" style="display:flex;gap:10px;flex-wrap:wrap;">Loading…</div>
+    </div>
+  </div>
+
+  <div class="md-tiles">
+    <a class="md-tile" href="member-profile.html" style="background:#2952E3;"><span class="icon">🧑</span>My Profile</a>
+    <a class="md-tile" href="my-payments.html" style="background:#FFB627;color:#3d2900;"><span class="icon">💳</span>My Payments</a>
+    <a class="md-tile" href="news.html" style="background:#7C6FE0;"><span class="icon">📣</span>Announcements</a>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="js/service-worker-register.js"></script>
+<script>
+async function load() {
+  const profile = await requireAuth("member");
+  if (!profile) return;
+  await renderHeader("member-dashboard", profile);
+
+  if (!profile.member_id) {
+    document.getElementById("welcome-heading").textContent = "Welcome!";
+    document.getElementById("status-row").innerHTML = `<div class="empty">Your account isn't linked to a member record yet — ask an admin to connect it.</div>`;
+    return;
+  }
+
+  const member = await getMember(profile.member_id);
+  document.getElementById("welcome-heading").textContent = `Welcome, ${member.name}!`;
+  document.title = `Welcome, ${member.name}`;
+
+  const duration = computeMembershipDuration(member.joined_date);
+  const currentYear = new Date().getFullYear();
+  const feeCharge = await getChargeForMemberCategoryYear(member.id, "Membership Fee", currentYear);
+  let feeStatusHtml;
+  if (!feeCharge) {
+    feeStatusHtml = `<span class="badge unpaid">${currentYear} fee not yet charged</span>`;
+  } else if (feeCharge.balance <= 0) {
+    feeStatusHtml = `<span class="badge paid">${currentYear} fee Paid</span>`;
+  } else {
+    feeStatusHtml = `<span class="badge unpaid">${currentYear} fee: ${money(feeCharge.balance)} due</span>`;
+  }
+
+  document.getElementById("status-row").innerHTML = `
+    <div style="background:#f6f4ef;border-radius:10px;padding:10px 14px;">
+      <div class="muted" style="font-size:10.5px;text-transform:uppercase;">Member No.</div>
+      <div style="font-weight:600;">${member.member_code}</div>
+    </div>
+    <div style="background:#f6f4ef;border-radius:10px;padding:10px 14px;">
+      <div class="muted" style="font-size:10.5px;text-transform:uppercase;">Membership</div>
+      <span class="badge paid">Active</span>
+    </div>
+    <div style="background:#f6f4ef;border-radius:10px;padding:10px 14px;">
+      <div class="muted" style="font-size:10.5px;text-transform:uppercase;">Membership duration</div>
+      <div style="font-weight:600;">${duration}</div>
+    </div>
+    <div style="background:#f6f4ef;border-radius:10px;padding:10px 14px;">
+      <div class="muted" style="font-size:10.5px;text-transform:uppercase;">${currentYear} Payment Status</div>
+      ${feeStatusHtml}
+    </div>
+  `;
+}
+
+load().catch((e) => flash("Couldn't load your dashboard: " + e.message, "error"));
+</script>
+</body>
+</html>
