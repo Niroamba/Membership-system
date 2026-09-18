@@ -72,6 +72,39 @@ table.simple th{ text-transform:uppercase; font-size:11px; letter-spacing:.05em;
 .toast.success{ background:var(--paid); }
 .toast.error{ background:var(--unpaid); }
 
+/* Sidebar shell */
+.app-shell{ display:flex; min-height:100vh; position:relative; align-items:flex-start; }
+.app-sidebar{
+  width:220px; flex-shrink:0; background:#1F2430; color:#fff;
+  padding:20px 0 12px; display:flex; flex-direction:column; gap:14px;
+  position:sticky; top:0; height:100vh; overflow-y:auto; z-index:300;
+}
+.sidebar-brand{ padding:0 20px; font-family:Georgia,serif; font-size:16px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.sidebar-brand img{ height:24px; border-radius:4px; }
+.sidebar-nav{ display:flex; flex-direction:column; flex:1; }
+.sidebar-nav a{ color:#aab0bb; text-decoration:none; font-size:13px; padding:11px 20px; border-left:3px solid transparent; }
+.sidebar-nav a.active{ background:#2952E3; color:#fff; font-weight:600; border-left-color:#FFB627; }
+.sidebar-nav a:hover:not(.active){ background:rgba(255,255,255,.06); color:#fff; }
+.sidebar-foot{ padding:12px 20px 0; font-size:11px; color:#8a93a3; border-top:1px solid rgba(255,255,255,.08); }
+.sidebar-foot a{ color:#FFB627; text-decoration:underline; cursor:pointer; }
+
+.app-shell > .wrap{ flex:1; max-width:none; padding:0 24px 40px; margin:0; min-width:0; }
+
+#app-topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 0 10px; flex-wrap:wrap; }
+.topbar-title{ font-family:Georgia,serif; font-size:18px; color:var(--ink); flex:1; }
+.topbar-tools{ display:flex; gap:6px; flex-wrap:wrap; }
+.hamburger-btn{ display:none; background:none; border:none; font-size:20px; cursor:pointer; color:var(--ink); padding:4px 8px; }
+
+.sidebar-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:250; }
+
+@media (max-width: 880px){
+  .app-sidebar{ position:fixed; left:-240px; top:0; height:100vh; transition:left .25s ease; box-shadow:2px 0 12px rgba(0,0,0,.2); }
+  .app-shell.sidebar-open .app-sidebar{ left:0; }
+  .app-shell.sidebar-open .sidebar-overlay{ display:block; }
+  .hamburger-btn{ display:inline-block; }
+  .app-shell > .wrap{ padding:0 14px 30px; }
+}
+
 /* Bold toolbar header, shared by All Members, Payment Details, Messaging,
    Announcements, and Removed pages */
 .bold-toolbar{ background:#2952E3; padding:16px 20px; border-radius:16px 16px 0 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Profile</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .avatar-circle{ width:56px; height:56px; border-radius:50%; background:#2952E3; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:600; font-family:Georgia,serif; flex-shrink:0; }
+  .profile-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; font-size:13px; }
+  @media (max-width:520px){ .profile-grid{ grid-template-columns:1fr; } }
+  .profile-grid .label{ color:#8a8474; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+  .profile-grid .span2{ grid-column:1 / -1; }
+</style>
+</head>
+<body>
+<header class="top" id="app-header"></header>
+<div class="wrap">
+  <div id="flash-holder"></div>
+
+  <div class="bold-wrap">
+    <div class="bold-toolbar">
+      <h2>Member profile</h2>
+      <div class="bold-actions">
+        <a class="bold-btn primary" id="edit-link" href="#" data-admin-only>Edit</a>
+        <a class="bold-btn ghost" id="back-link" href="members.html">Back to Members</a>
+      </div>
+    </div>
+    <div class="bold-wrap-body">
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:18px;" id="identity-block">Loading…</div>
+      <div class="profile-grid" id="profile-grid"></div>
+    </div>
+  </div>
+
+  <div class="row-actions">
+    <a class="btn secondary" id="view-payments-link" href="#">View Payments</a>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="js/service-worker-register.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const memberId = params.get("id");
+
+function initials(name) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("");
+}
+
+async function load() {
+  const profile = await requireAuth("admin_or_viewer");
+  if (!profile) return;
+  await renderHeader("members", profile);
+  applyViewerRestrictions(profile);
+
+  if (!memberId) {
+    window.location.href = "members.html";
+    return;
+  }
+  const member = await getMember(memberId);
+  if (!member) {
+    window.location.href = "members.html";
+    return;
+  }
+
+  document.title = `${member.name} — Profile`;
+  document.getElementById("edit-link").href = `member-detail.html?id=${member.id}&edit=1`;
+  document.getElementById("view-payments-link").href = `member-detail.html?id=${member.id}`;
+
+  document.getElementById("identity-block").innerHTML = `
+    <div class="avatar-circle">${initials(member.name)}</div>
+    <div>
+      <div style="font-family:Georgia,serif;font-size:18px;">${member.name}</div>
+      <div class="muted" style="font-size:12px;">${member.member_code}</div>
+    </div>
+  `;
+
+  const duration = computeMembershipDuration(member.joined_date);
+  document.getElementById("profile-grid").innerHTML = `
+    <div><div class="label">Phone</div>${member.phone_number || "—"}</div>
+    <div><div class="label">Joined</div>${member.joined_date || "—"}</div>
+    <div><div class="label">Membership duration</div><span class="badge paid" style="background:${duration.includes("yr") ? "#2BAE66" : "#FFB627"};color:#fff;">${duration}</span></div>
+    <div><div class="label">Remarks</div>${member.remarks || "—"}</div>
+    <div class="span2"><div class="label">Address</div>${member.address || "—"}</div>
+  `;
+}
+
+load().catch((e) => flash("Couldn't load member profile: " + e.message, "error"));
+</script>
+</body>
+</html>

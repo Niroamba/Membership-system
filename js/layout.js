@@ -1,9 +1,12 @@
-// Renders the top header + nav bar into <div id="app-header"></div>.
+// Renders the left sidebar + slim topbar. Restructures the page's existing
+// <header id="app-header"> and <div class="wrap"> into a sidebar shell via
+// DOM manipulation, so individual pages don't need their HTML rewritten.
 // Call after requireAuth() succeeds so we know the role.
 
 const ADMIN_NAV = [
   ["dashboard.html", "dashboard", "Dashboard"],
   ["members.html", "members", "Members"],
+  ["record-payment.html", "record-payment", "Record Payment"],
   ["payment-details.html", "payment-details", "Payment Details"],
   ["messaging.html", "messaging", "Messaging"],
   ["news.html", "news", "Announcements"],
@@ -12,40 +15,69 @@ const ADMIN_NAV = [
 ];
 
 async function renderHeader(activeKey, profile) {
-  const el = document.getElementById("app-header");
-  if (!el) return;
+  const sidebarEl = document.getElementById("app-header");
+  const contentEl = document.querySelector(".wrap");
+  if (!sidebarEl || !contentEl) return;
 
   const [societyName, logoUrl] = await Promise.all([getSocietyName(), getLogoUrl()]);
   document.title = document.title ? document.title : societyName;
 
-  let navHtml = "";
-  if (profile.role === "admin" || profile.role === "viewer") {
-    navHtml = `<nav class="tabs">${ADMIN_NAV.map(
-      ([href, key, label]) =>
-        `<a href="${href}" class="${key === activeKey ? "active" : ""}">${label}</a>`
-    ).join("")}</nav>`;
+  let shell = document.querySelector(".app-shell");
+  if (!shell) {
+    shell = document.createElement("div");
+    shell.className = "app-shell";
+    sidebarEl.parentNode.insertBefore(shell, sidebarEl);
+    shell.appendChild(sidebarEl);
+    shell.appendChild(contentEl);
   }
+  sidebarEl.className = "app-sidebar";
 
-  const staffTools =
-    profile.role === "admin" || profile.role === "viewer"
-      ? `<button class="btn small secondary" id="backup-now-btn" style="margin-right:6px;">Backup now</button>
-         <button class="btn small secondary" id="font-smaller-btn" aria-label="Smaller text" style="padding:5px 9px;">A-</button>
-         <button class="btn small secondary" id="font-larger-btn" aria-label="Larger text" style="padding:5px 9px;">A+</button>`
-      : "";
+  const isStaff = profile.role === "admin" || profile.role === "viewer";
+  const navHtml = isStaff
+    ? ADMIN_NAV.map(([href, key, label]) => `<a href="${href}" class="${key === activeKey ? "active" : ""}">${label}</a>`).join("")
+    : `<a href="my-payments.html" class="active">My Payments</a>`;
 
-  el.innerHTML = `
-    <div class="eyebrow">Membership System</div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
-      <h1 style="margin:6px 0 10px;">${logoUrl ? `<img src="${logoUrl}" alt="">` : ""}${societyName}</h1>
-      <div>${staffTools}</div>
+  sidebarEl.innerHTML = `
+    <div class="sidebar-brand">${logoUrl ? `<img src="${logoUrl}" alt="">` : "🌿"} <span>${societyName}</span></div>
+    <nav class="sidebar-nav">${navHtml}</nav>
+    <div class="sidebar-foot">
+      Signed in as ${profile.username || profile.role} (${profile.role})<br>
+      <a href="#" id="sign-out-link">Sign out</a>
     </div>
-    ${navHtml}
-    <div class="userline">Signed in as ${profile.username || profile.role} (${profile.role}) · <a href="#" id="sign-out-link">Sign out</a></div>
   `;
+
+  let topbar = document.getElementById("app-topbar");
+  if (!topbar) {
+    topbar = document.createElement("div");
+    topbar.id = "app-topbar";
+    contentEl.insertBefore(topbar, contentEl.firstChild);
+  }
+  const staffTools = isStaff
+    ? `<button class="btn small secondary" id="backup-now-btn">Backup now</button>
+       <button class="btn small secondary" id="font-smaller-btn" aria-label="Smaller text">A-</button>
+       <button class="btn small secondary" id="font-larger-btn" aria-label="Larger text">A+</button>`
+    : "";
+  topbar.innerHTML = `
+    <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu">☰</button>
+    <div class="topbar-title">${document.title}</div>
+    <div class="topbar-tools">${staffTools}</div>
+  `;
+
   document.getElementById("sign-out-link").addEventListener("click", (e) => {
     e.preventDefault();
     signOut();
   });
+
+  document.getElementById("hamburger-btn").addEventListener("click", () => {
+    shell.classList.toggle("sidebar-open");
+  });
+
+  if (!document.querySelector(".sidebar-overlay")) {
+    const overlay = document.createElement("div");
+    overlay.className = "sidebar-overlay";
+    overlay.addEventListener("click", () => shell.classList.remove("sidebar-open"));
+    shell.appendChild(overlay);
+  }
 
   if (document.getElementById("backup-now-btn")) {
     document.getElementById("backup-now-btn").addEventListener("click", async (e) => {

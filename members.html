@@ -39,7 +39,7 @@
     <h2>All members</h2>
     <div class="am-actions">
       <a class="am-btn primary" href="member-detail.html" data-admin-only>+ Add member</a>
-      <button class="am-btn ghost" id="edit-btn" disabled data-admin-only>Edit selected</button>
+      <button class="am-btn ghost" id="edit-btn" disabled>View profile</button>
       <button class="am-btn ghost" id="delete-btn" disabled data-admin-only>Delete selected</button>
       <button class="am-btn ghost" id="view-payments-btn" disabled>View payments</button>
       <button class="am-btn ghost" id="export-statement-btn" disabled>Export statement</button>
@@ -158,7 +158,7 @@ async function refreshFeeAmount() {
 }
 
 document.getElementById("edit-btn").addEventListener("click", () => {
-  if (selectedId) window.location.href = `member-detail.html?id=${selectedId}&edit=1`;
+  if (selectedId) window.location.href = `member-profile.html?id=${selectedId}`;
 });
 
 document.getElementById("view-payments-btn").addEventListener("click", () => {

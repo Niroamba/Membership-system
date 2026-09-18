@@ -86,6 +86,14 @@ async function getChargesForMember(memberId) {
   });
 }
 
+async function getChargeForMemberCategoryYear(memberId, description, year) {
+  let query = sb().from("charges").select("*, payments(*)").eq("member_id", memberId).eq("description", description);
+  query = year ? query.eq("year", year) : query.is("year", null);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(1);
+  if (error) throw error;
+  return data && data.length ? withPaidBalance(data[0]) : null;
+}
+
 async function addCharge(memberId, description, year, totalAmount) {
   const { data, error } = await sb()
     .from("charges")
